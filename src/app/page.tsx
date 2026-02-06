@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import {
-  Activity, Users, Eye, Clock, FileText, MousePointer2,
+  Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone
 } from 'lucide-react';
 import {
@@ -11,14 +11,38 @@ import {
 } from 'recharts';
 
 // --- TYPES ---
+interface AnalyticsEvent {
+  id: string;
+  created_at: string;
+  event_name: string;
+  path: string;
+  ip_address: string | null;
+  country: string | null;
+  session_id: string | null;
+  user_agent: string | null;
+}
+
 interface DashboardData {
   liveUsers: number;
   totalPageviews: number;
   uniqueVisitors: number;
   uniquePages: number;
   chartData: { name: string; views: number }[];
-  recentEvents: any[];
+  recentEvents: AnalyticsEvent[];
   abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
+}
+
+interface CardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+}
+
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
 }
 
 export default function Dashboard() {
@@ -210,7 +234,7 @@ export default function Dashboard() {
 
 // --- COMPONENTS ---
 
-function Card({ title, value, icon }: any) {
+function Card({ title, value, icon }: CardProps) {
   return (
     <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 flex flex-col justify-between h-28">
       <div className="flex items-center justify-between text-neutral-400 text-xs font-medium uppercase tracking-wider">
@@ -222,13 +246,13 @@ function Card({ title, value, icon }: any) {
   );
 }
 
-function TabButton({ active, onClick, icon, label }: any) {
+function TabButton({ active, onClick, icon, label }: TabButtonProps) {
   return (
     <button
       onClick={onClick}
       className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2 ${active
-          ? 'border-blue-500 text-blue-400 bg-neutral-800/50'
-          : 'border-transparent text-neutral-400 hover:text-white hover:bg-neutral-800'
+        ? 'border-blue-500 text-blue-400 bg-neutral-800/50'
+        : 'border-transparent text-neutral-400 hover:text-white hover:bg-neutral-800'
         }`}
     >
       {icon}
