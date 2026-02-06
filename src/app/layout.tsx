@@ -15,7 +15,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "DreamPlay Analytics",
-  description: "Real-time traffic monitoring",
+  description: "Internal traffic dashboard",
 };
 
 export default function RootLayout({
