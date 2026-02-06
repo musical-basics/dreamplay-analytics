@@ -42,10 +42,10 @@ export async function GET(request: Request) {
         // 4. Fetch Recent Events
         const { data: events } = await supabase
             .from('analytics_logs')
-            .select('*')
+            .select('id, event_name, path, created_at, country, ip_address, user_agent, session_id')
             .gt('created_at', startTime.toISOString())
             .order('created_at', { ascending: false }) // Newest first
-            .limit(20);
+            .limit(50);
 
         return NextResponse.json({
             users: liveUsers || 0,
