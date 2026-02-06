@@ -9,7 +9,7 @@ export async function GET() {
     try {
         // 1. Live Users (Last 5 minutes)
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-        const { count: liveUsersCount, error: liveError } = await supabase
+        const { error: liveError } = await supabase
             .from('analytics_logs')
             .select('session_id', { count: 'exact', head: true })
             .gte('created_at', fiveMinutesAgo);
