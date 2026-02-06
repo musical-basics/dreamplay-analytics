@@ -4,11 +4,33 @@
 import { useEffect, useState } from 'react';
 import { Activity, Users, Eye } from 'lucide-react';
 
+// 1. Define proper types to satisfy the linter
+interface AnalyticsEvent {
+  event_name: string;
+  country: string | null;
+  path: string;
+  created_at: string;
+}
+
+interface DashboardStats {
+  users: number;
+  pageviews: number;
+  events: AnalyticsEvent[];
+}
+
+interface CardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  isText?: boolean;
+}
+
 export default function Dashboard() {
-  const [stats, setStats] = useState({
+  // 2. Use the types in the state
+  const [stats, setStats] = useState<DashboardStats>({
     users: 0,
     pageviews: 0,
-    events: [] // Initialize as empty array to prevent crash
+    events: []
   });
   const [loading, setLoading] = useState(true);
 
@@ -16,7 +38,6 @@ export default function Dashboard() {
     async function fetchData() {
       try {
         const res = await fetch('/api/stats');
-        // If the API fails, don't crash, just log it
         if (!res.ok) {
           console.error("API Error:", res.status);
           return;
@@ -31,11 +52,10 @@ export default function Dashboard() {
     }
 
     fetchData();
-    const interval = setInterval(fetchData, 5000); // Auto-refresh every 5s
+    const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Safe check before slicing
   const recentEvents = Array.isArray(stats.events) ? stats.events.slice(0, 10) : [];
 
   return (
@@ -54,14 +74,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card title="Live Users (5m)" value={stats.users} icon={<Users className="w-4 h-4 text-blue-400" />} />
           <Card title="Total Pageviews" value={stats.pageviews} icon={<Eye className="w-4 h-4 text-purple-400" />} />
           <Card title="System Status" value="Operational" icon={<Activity className="w-4 h-4 text-green-400" />} isText />
         </div>
 
-        {/* Recent Events List */}
         <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
           <div className="p-4 border-b border-neutral-700 bg-neutral-800/50">
             <h2 className="font-semibold text-neutral-200">Recent Events</h2>
@@ -72,7 +90,7 @@ export default function Dashboard() {
                 {loading ? "Loading events..." : "No events recorded yet. Visit your sites to trigger tracking."}
               </div>
             ) : (
-              recentEvents.map((event: any, i: number) => (
+              recentEvents.map((event, i) => (
                 <div key={i} className="p-4 flex items-center justify-between hover:bg-neutral-700/50 transition-colors">
                   <div className="flex flex-col gap-1">
                     <span className="font-medium text-white flex items-center gap-2">
@@ -96,7 +114,8 @@ export default function Dashboard() {
   );
 }
 
-function Card({ title, value, icon, isText = false }: any) {
+// 3. Typed Card Component
+function Card({ title, value, icon, isText = false }: CardProps) {
   return (
     <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 flex flex-col justify-between h-32">
       <div className="flex items-center justify-between text-neutral-400 text-xs font-medium uppercase tracking-wider">
