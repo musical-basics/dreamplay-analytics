@@ -60,9 +60,9 @@ export async function GET() {
         if (totalError) throw totalError;
 
         return NextResponse.json({
-            liveUsers: uniqueSessions,
-            totalPageviews: totalPageviews || 0,
-            recentEvents: recentEvents?.slice(0, 10) || []
+            users: uniqueSessions,
+            pageviews: totalPageviews || 0,
+            events: recentEvents?.slice(0, 10) || []
         }, { status: 200 });
 
     } catch (error) {
