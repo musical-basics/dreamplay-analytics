@@ -52,7 +52,7 @@ export async function GET(request: Request) {
         // BUT, the user explicitly said "Replace... with THIS VERSION".
         // I will use their version but I'll add the dynamic exports I know are needed.
 
-        const { count: liveEventsCount, error: liveError } = await supabase
+        const { error: liveError } = await supabase
             .from('analytics_logs')
             .select('*', { count: 'exact', head: true })
             .gt('created_at', fiveMinutesAgo)
