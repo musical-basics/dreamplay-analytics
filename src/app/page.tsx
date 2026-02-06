@@ -2,95 +2,77 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Activity, Users, Eye, Clock, Smartphone, Globe, Hash } from 'lucide-react';
+import {
+  Activity, Users, Eye, Clock, FileText, MousePointer2,
+  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone
+} from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
 
-// 1. Helper function (if you didn't put it in a separate file)
-function getDeviceName(userAgent: string | null): string {
-  if (!userAgent) return 'Unknown';
-  if (userAgent.includes('iPhone')) return 'iPhone';
-  if (userAgent.includes('iPad')) return 'iPad';
-  if (userAgent.includes('Android')) return 'Android';
-  if (userAgent.includes('Macintosh')) return 'Mac OS';
-  if (userAgent.includes('Windows')) return 'Windows';
-  return 'Desktop';
-}
-
-interface AnalyticsEvent {
-  id: string;
-  event_name: string;
-  country: string | null;
-  path: string;
-  created_at: string;
-  ip_address: string | null;
-  user_agent: string | null;
-  session_id: string | null;
-}
-
-interface DashboardStats {
-  users: number;
-  pageviews: number;
-  events: AnalyticsEvent[];
-}
-
-interface CardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  isText?: boolean;
-  subtitle?: string;
+// --- TYPES ---
+interface DashboardData {
+  liveUsers: number;
+  totalPageviews: number;
+  uniqueVisitors: number;
+  uniquePages: number;
+  chartData: { name: string; views: number }[];
+  recentEvents: any[];
+  abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<DashboardStats>({
-    users: 0,
-    pageviews: 0,
-    events: []
-  });
-  const [range, setRange] = useState('24h'); // State for time range
+  const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('7d');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs'>('overview');
 
   useEffect(() => {
     async function fetchData() {
-      setLoading(true);
       try {
-        // Pass the range param to the API
         const res = await fetch(`/api/stats?range=${range}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setStats(data);
-      } catch (error) {
-        console.error("Failed to fetch stats:", error);
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+        }
+      } catch (e) {
+        console.error(e);
       } finally {
         setLoading(false);
       }
     }
 
     fetchData();
-    // Refresh every 10s
-    const interval = setInterval(fetchData, 10000);
+    const interval = setInterval(fetchData, 5000); // Poll every 5s
     return () => clearInterval(interval);
-  }, [range]); // Re-run when 'range' changes
+  }, [range]);
 
-  const recentEvents = Array.isArray(stats.events) ? stats.events : [];
+  if (!data && loading) return <div className="min-h-screen bg-neutral-900 flex items-center justify-center text-white">Loading...</div>;
+  if (!data) return <div className="min-h-screen bg-neutral-900 text-white p-10">Failed to load data.</div>;
 
   return (
     <div className="min-h-screen bg-neutral-900 text-white p-6 md:p-12 font-sans">
       <div className="max-w-6xl mx-auto space-y-8">
 
-        {/* Header & Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <span className="text-blue-500">DreamPlay</span> Analytics
-          </h1>
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <span className="text-blue-500">DreamPlay</span> Analytics
+            </h1>
+            <div className="flex items-center gap-2 mt-2 text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full w-fit">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              {data.liveUsers} Live Users
+            </div>
+          </div>
 
-          <div className="flex items-center gap-2 bg-neutral-800 p-1 rounded-lg border border-neutral-700">
-            {['1h', '24h', '7d', '30d', 'all'].map((r) => (
+          {/* TIME RANGE CONTROLS */}
+          <div className="bg-neutral-800 p-1 rounded-lg border border-neutral-700 flex">
+            {['24h', '7d', '30d', 'all'].map((r) => (
               <button
                 key={r}
                 onClick={() => setRange(r)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-md transition-all ${range === r
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-neutral-400 hover:text-white hover:bg-neutral-700'
+                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${range === r ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'
                   }`}
               >
                 {r.toUpperCase()}
@@ -99,115 +81,158 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card
-            title="Live Users"
-            value={stats.users}
-            icon={<Users className="w-4 h-4 text-blue-400" />}
-            subtitle="Active in last 5m"
-          />
-          <Card
-            title="Pageviews"
-            value={loading ? '...' : stats.pageviews}
-            icon={<Eye className="w-4 h-4 text-purple-400" />}
-            subtitle={`In the last ${range}`}
-          />
-          <Card
-            title="System Status"
-            value="Operational"
-            icon={<Activity className="w-4 h-4 text-green-400" />}
-            isText
-          />
+        {/* TAB NAVIGATION */}
+        <div className="flex border-b border-neutral-800">
+          <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutDashboard size={16} />} label="Traffic Overview" />
+          <TabButton active={activeTab === 'ab'} onClick={() => setActiveTab('ab')} icon={<FlaskConical size={16} />} label="A/B Tests" />
+          <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<TableProperties size={16} />} label="Raw Logs" />
         </div>
 
-        {/* Updated Recent Events List */}
-        <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden shadow-2xl">
-          <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
-            <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
-              <Clock className="w-4 h-4 text-neutral-400" /> Recent Activity
-            </h2>
-            <div className="text-xs text-neutral-500 flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
-              Live Feed
+        {/* --- TAB CONTENT: OVERVIEW --- */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6 animate-in fade-in">
+            {/* KPI CARDS */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card title="Unique Visitors" value={data.uniqueVisitors} icon={<Users className="text-blue-400" />} />
+              <Card title="Total Pageviews" value={data.totalPageviews} icon={<Eye className="text-purple-400" />} />
+              <Card title="Unique Pages" value={data.uniquePages} icon={<FileText className="text-yellow-400" />} />
+              <Card title="Avg. Pages/User" value={(data.totalPageviews / (data.uniqueVisitors || 1)).toFixed(1)} icon={<Activity className="text-green-400" />} />
+            </div>
+
+            {/* CHART */}
+            <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 shadow-xl">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-blue-500" />
+                Page Views Trend
+              </h3>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.chartData}>
+                    <defs>
+                      <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis dataKey="name" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Area type="monotone" dataKey="views" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorViews)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
+        )}
 
-          <div className="max-h-[600px] overflow-y-auto divide-y divide-neutral-700/50 scrollbar-thin scrollbar-thumb-neutral-700 scrollbar-track-transparent">
-            {recentEvents.length === 0 ? (
-              <div className="p-12 text-center text-neutral-500">No events found.</div>
+        {/* --- TAB CONTENT: A/B TESTS --- */}
+        {activeTab === 'ab' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+            {data.abResults.length === 0 ? (
+              <div className="col-span-2 text-center py-20 text-neutral-500">No A/B tests recorded yet.</div>
             ) : (
-              recentEvents.map((event, i) => (
-                <div key={i} className="p-4 hover:bg-white/5 transition-colors group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0">
-
-                  {/* Left: Event & Path */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-1">
-                      <span className={`font-bold text-sm ${event.event_name === 'conversion' ? 'text-green-400' : 'text-white'}`}>
-                        {event.event_name}
-                      </span>
-                      {/* Country Badge */}
-                      {event.country && (
-                        <span className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 bg-neutral-900 px-1.5 py-0.5 rounded border border-neutral-700/50 uppercase tracking-wider">
-                          <Globe className="w-3 h-3" /> {event.country}
-                        </span>
-                      )}
+              data.abResults.map((variant) => (
+                <div key={variant.variant} className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-xl font-bold capitalize text-white">{variant.variant}</h3>
+                    <span className="text-xs font-mono bg-neutral-900 px-2 py-1 rounded text-neutral-400">ID: {variant.variant}</span>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
+                      <span className="text-sm text-neutral-400">Visitors</span>
+                      <span className="font-mono font-bold">{variant.visitors}</span>
                     </div>
-                    {/* Path */}
-                    <div className="text-xs text-neutral-400 font-mono truncate max-w-[400px] opacity-80 group-hover:opacity-100 transition-opacity" title={event.path}>
-                      {event.path}
+                    <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
+                      <span className="text-sm text-neutral-400">Conversions</span>
+                      <span className="font-mono font-bold text-green-400">{variant.conversions}</span>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>Conversion Rate</span>
+                        <span className="font-bold">{variant.conversion_rate}%</span>
+                      </div>
+                      <div className="w-full bg-neutral-700 rounded-full h-2">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(Number(variant.conversion_rate), 100)}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-
-                  {/* Middle: Tech Details (IP, Device, ID) */}
-                  <div className="flex items-center gap-4 text-xs text-neutral-500 font-mono sm:mr-8">
-                    {/* Device */}
-                    <div className="flex items-center gap-1.5 min-w-[80px]" title={event.user_agent || ''}>
-                      <Smartphone className="w-3.5 h-3.5" />
-                      <span>{getDeviceName(event.user_agent)}</span>
-                    </div>
-
-                    {/* IP Address */}
-                    <div className="hidden sm:block opacity-60">
-                      {event.ip_address || 'Unknown IP'}
-                    </div>
-
-                    {/* Session ID (Truncated) */}
-                    <div className="flex items-center gap-1 opacity-40" title={`Session: ${event.session_id}`}>
-                      <Hash className="w-3 h-3" />
-                      {event.session_id?.slice(0, 6)}...
-                    </div>
-                  </div>
-
-                  {/* Right: Time */}
-                  <div className="text-xs text-neutral-400 font-medium whitespace-nowrap text-right min-w-[70px]">
-                    {new Date(event.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </div>
-
                 </div>
               ))
             )}
           </div>
-        </div>
+        )}
+
+        {/* --- TAB CONTENT: LOGS --- */}
+        {activeTab === 'logs' && (
+          <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden animate-in fade-in">
+            <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
+              <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-neutral-400" /> Recent Events
+              </h2>
+            </div>
+            <div className="max-h-[600px] overflow-y-auto divide-y divide-neutral-700/50">
+              {data.recentEvents.map((event, i) => (
+                <div key={i} className="p-4 hover:bg-white/5 transition-colors group flex flex-col sm:flex-row gap-4 text-sm">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`font-bold ${event.event_name.includes('click') ? 'text-green-400' : 'text-blue-400'}`}>
+                        {event.event_name}
+                      </span>
+                      <span className="text-neutral-500">•</span>
+                      <span className="text-neutral-300">{event.path}</span>
+                    </div>
+                    <div className="flex gap-4 text-xs text-neutral-500 font-mono">
+                      <span className="flex items-center gap-1"><Globe size={10} /> {event.country || 'Unknown'}</span>
+                      <span className="flex items-center gap-1"><Smartphone size={10} /> {event.user_agent?.includes('Mac') ? 'Mac' : 'Device'}</span>
+                      <span className="opacity-50">{event.ip_address}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-neutral-500 whitespace-nowrap">
+                    {new Date(event.created_at).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 }
 
-function Card({ title, value, icon, isText = false, subtitle }: CardProps) {
+// --- COMPONENTS ---
+
+function Card({ title, value, icon }: any) {
   return (
-    <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 flex flex-col justify-between h-32 relative overflow-hidden">
-      <div className="flex items-center justify-between text-neutral-400 text-xs font-medium uppercase tracking-wider z-10">
+    <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 flex flex-col justify-between h-28">
+      <div className="flex items-center justify-between text-neutral-400 text-xs font-medium uppercase tracking-wider">
         {title}
         {icon}
       </div>
-      <div className={`text-3xl font-bold z-10 ${isText ? 'text-green-400 text-xl' : 'text-white'}`}>
-        {value}
-      </div>
-      {subtitle && <div className="text-xs text-neutral-500 z-10">{subtitle}</div>}
-
-      {/* Subtle background glow effect */}
-      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+      <div className="text-3xl font-bold text-white mt-2">{value}</div>
     </div>
+  );
+}
+
+function TabButton({ active, onClick, icon, label }: any) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2 ${active
+          ? 'border-blue-500 text-blue-400 bg-neutral-800/50'
+          : 'border-transparent text-neutral-400 hover:text-white hover:bg-neutral-800'
+        }`}
+    >
+      {icon}
+      {label}
+    </button>
   );
 }
