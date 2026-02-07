@@ -27,7 +27,13 @@ interface DashboardData {
   totalPageviews: number;
   uniqueVisitors: number;
   uniquePages: number;
-  chartData: { name: string; views: number }[];
+  chartData: {
+    name: string;
+    visitors: number;
+    pageviews: number;
+    unique_pages: number;
+    avg_per_user: number;
+  }[];
   recentEvents: AnalyticsEvent[];
   abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
 }
@@ -36,6 +42,8 @@ interface CardProps {
   title: string;
   value: string | number;
   icon: React.ReactNode;
+  isActive?: boolean;
+  onClick?: () => void;
 }
 
 interface TabButtonProps {
@@ -45,11 +53,14 @@ interface TabButtonProps {
   label: string;
 }
 
+type MetricType = 'visitors' | 'pageviews' | 'unique_pages' | 'avg_per_user';
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('7d');
   const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs'>('overview');
+  const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
 
   useEffect(() => {
     async function fetchData() {
@@ -70,6 +81,26 @@ export default function Dashboard() {
     const interval = setInterval(fetchData, 5000); // Poll every 5s
     return () => clearInterval(interval);
   }, [range]);
+
+  const getChartTitle = () => {
+    switch (activeMetric) {
+      case 'visitors': return 'Unique Visitors Trend';
+      case 'pageviews': return 'Page Views Trend';
+      case 'unique_pages': return 'Unique Pages Trend';
+      case 'avg_per_user': return 'Avg. Pages/User Trend';
+      default: return 'Trend';
+    }
+  };
+
+  const getMetricColor = () => {
+    switch (activeMetric) {
+      case 'visitors': return '#3b82f6'; // Blue
+      case 'pageviews': return '#a855f7'; // Purple
+      case 'unique_pages': return '#eab308'; // Yellow
+      case 'avg_per_user': return '#22c55e'; // Green
+      default: return '#3b82f6';
+    }
+  };
 
   if (!data && loading) return <div className="min-h-screen bg-neutral-900 flex items-center justify-center text-white">Loading...</div>;
   if (!data) return <div className="min-h-screen bg-neutral-900 text-white p-10">Failed to load data.</div>;
@@ -115,27 +146,51 @@ export default function Dashboard() {
         {/* --- TAB CONTENT: OVERVIEW --- */}
         {activeTab === 'overview' && (
           <div className="space-y-6 animate-in fade-in">
-            {/* KPI CARDS */}
+            {/* KPI CARDS - Clickable to change Chart */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card title="Unique Visitors" value={data.uniqueVisitors} icon={<Users className="text-blue-400" />} />
-              <Card title="Total Pageviews" value={data.totalPageviews} icon={<Eye className="text-purple-400" />} />
-              <Card title="Unique Pages" value={data.uniquePages} icon={<FileText className="text-yellow-400" />} />
-              <Card title="Avg. Pages/User" value={(data.totalPageviews / (data.uniqueVisitors || 1)).toFixed(1)} icon={<Activity className="text-green-400" />} />
+              <Card
+                title="Unique Visitors"
+                value={data.uniqueVisitors}
+                icon={<Users className="text-blue-400" />}
+                isActive={activeMetric === 'visitors'}
+                onClick={() => setActiveMetric('visitors')}
+              />
+              <Card
+                title="Total Pageviews"
+                value={data.totalPageviews}
+                icon={<Eye className="text-purple-400" />}
+                isActive={activeMetric === 'pageviews'}
+                onClick={() => setActiveMetric('pageviews')}
+              />
+              <Card
+                title="Unique Pages"
+                value={data.uniquePages}
+                icon={<FileText className="text-yellow-400" />}
+                isActive={activeMetric === 'unique_pages'}
+                onClick={() => setActiveMetric('unique_pages')}
+              />
+              <Card
+                title="Avg. Pages/User"
+                value={(data.totalPageviews / (data.uniqueVisitors || 1)).toFixed(1)}
+                icon={<Activity className="text-green-400" />}
+                isActive={activeMetric === 'avg_per_user'}
+                onClick={() => setActiveMetric('avg_per_user')}
+              />
             </div>
 
             {/* CHART */}
-            <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 shadow-xl">
+            <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 shadow-xl transition-all">
               <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-blue-500" />
-                Page Views Trend
+                <Activity className="w-5 h-5" style={{ color: getMetricColor() }} />
+                {getChartTitle()}
               </h3>
               <div className="h-[300px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={data.chartData}>
                     <defs>
-                      <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={getMetricColor()} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={getMetricColor()} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
@@ -145,7 +200,15 @@ export default function Dashboard() {
                       contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }}
                       itemStyle={{ color: '#fff' }}
                     />
-                    <Area type="monotone" dataKey="views" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorViews)" />
+                    <Area
+                      type="monotone"
+                      dataKey={activeMetric}
+                      stroke={getMetricColor()}
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorMetric)"
+                      animationDuration={500}
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -234,9 +297,13 @@ export default function Dashboard() {
 
 // --- COMPONENTS ---
 
-function Card({ title, value, icon }: CardProps) {
+function Card({ title, value, icon, isActive, onClick }: CardProps) {
   return (
-    <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 flex flex-col justify-between h-28">
+    <div
+      onClick={onClick}
+      className={`bg-neutral-800 p-6 rounded-xl border flex flex-col justify-between h-28 cursor-pointer transition-all hover:bg-neutral-700/80 ${isActive ? 'border-blue-500 ring-1 ring-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'border-neutral-700 hover:border-neutral-600'
+        }`}
+    >
       <div className="flex items-center justify-between text-neutral-400 text-xs font-medium uppercase tracking-wider">
         {title}
         {icon}

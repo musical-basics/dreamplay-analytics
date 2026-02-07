@@ -51,43 +51,44 @@ export async function GET(request: Request) {
 
         // C. Process Chart Data
         // Group logs by Hour (for 24h) or Day (for others)
-        const chartMap = new Map<string, number>();
+        // C. Process Chart Data
+        const chartMap = new Map<string, { visitors: Set<string>, pageviews: number, paths: Set<string> }>();
 
         safeLogs.forEach(log => {
             const date = new Date(log.created_at);
             let key = '';
 
             if (range === '24h') {
-                // Format: "10 PM", "11 PM"
                 key = date.toLocaleTimeString('en-US', { hour: 'numeric' });
             } else {
-                // Format: "Jan 15", "Jan 16"
                 key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             }
 
-            // Count visitors (or pageviews) per bucket
-            // User comment says "Count visitors (or pageviews) per bucket"
-            // The implementation counts LOGS, which means pageviews + events.
-            // Usually charts are pageviews or unique visitors.
-            // The code logic: chartMap.set(key, (chartMap.get(key) || 0) + 1);
-            // This counts ALL events (pageviews + others).
-            // Given the chart title is "Page Views Trend" in the dashboard code provided later,
-            // it might be better to filter for just 'pageview' events if we want strict pageviews.
-            // However, the User's code simply iterates `safeLogs`, which contains all events.
-            // I will stick to the User's code exactly to avoid "fixing" something they might intend (activity trend vs pageview trend).
-            // If it says "Page Views Trend", I'll implicitly assume they want pageviews.
-            // MODIFYING SLIGHTLY: I will filter for 'pageview' events for the chart to make the title "Page View Trend" accurate.
-            // Wait, the prompt says "Replace the entire file with this:".
-            // I must strictly follow the provided code unless it's broken.
-            // The provided code counts *all* log entries.
-            // I will execute the user's code as provided.
-            chartMap.set(key, (chartMap.get(key) || 0) + 1);
+            if (!chartMap.has(key)) {
+                chartMap.set(key, { visitors: new Set(), pageviews: 0, paths: new Set() });
+            }
+            const entry = chartMap.get(key)!;
+
+            // Visitors (Session ID)
+            if (log.session_id) entry.visitors.add(log.session_id);
+            else if (log.ip_address) entry.visitors.add(log.ip_address); // Fallback
+
+            // Pageviews (Only count 'pageview' events)
+            if (log.event_name === 'pageview') {
+                entry.pageviews += 1;
+            }
+
+            // Unique Pages (Path)
+            if (log.path) entry.paths.add(log.path);
         });
 
         // Convert Map to Array for Recharts
-        const chartData = Array.from(chartMap.entries()).map(([name, views]) => ({
+        const chartData = Array.from(chartMap.entries()).map(([name, data]) => ({
             name,
-            views
+            visitors: data.visitors.size,
+            pageviews: data.pageviews,
+            unique_pages: data.paths.size,
+            avg_per_user: data.visitors.size > 0 ? parseFloat((data.pageviews / data.visitors.size).toFixed(1)) : 0
         }));
 
         // D. A/B Test Data (Calculated in-memory for simplicity)
