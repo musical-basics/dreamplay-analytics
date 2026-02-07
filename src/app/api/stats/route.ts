@@ -11,9 +11,17 @@ const supabase = createClient(
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
+    const range = searchParams.get('range') || '7d';
     const excludeAdmin = searchParams.get('exclude_admin') === 'true';
 
-    // ... (existing code) ...
+    const now = new Date();
+    let startTime = new Date();
+
+    // 1. Determine Time Range
+    if (range === '24h') startTime.setHours(now.getHours() - 24);
+    if (range === '7d') startTime.setDate(now.getDate() - 7);
+    if (range === '30d') startTime.setDate(now.getDate() - 30);
+    if (range === 'all') startTime = new Date(0);
 
     try {
         // 2. Fetch Logs for the Time Range
@@ -47,8 +55,6 @@ export async function GET(request: Request) {
         const uniquePages = new Set(safeLogs.map(l => l.path)).size;
         const totalPageviews = safeLogs.filter(l => l.event_name === 'pageview').length;
 
-        // C. Process Chart Data
-        // Group logs by Hour (for 24h) or Day (for others)
         // C. Process Chart Data
         const chartMap = new Map<string, { visitors: Set<string>, pageviews: number, paths: Set<string> }>();
 
