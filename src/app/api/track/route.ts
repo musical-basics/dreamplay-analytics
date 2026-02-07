@@ -34,6 +34,11 @@ export async function POST(request: Request) {
     const origin = request.headers.get('origin');
     const headers = corsHeaders(origin);
 
+    const userAgent = (request.headers.get('user-agent') || '').toLowerCase();
+    if (userAgent.includes('bot') || userAgent.includes('spider') || userAgent.includes('crawl')) {
+        return NextResponse.json({ ignored: true }, { status: 200, headers });
+    }
+
     try {
         const body = await request.json();
         const { eventName, path, sessionId, metadata } = body;
