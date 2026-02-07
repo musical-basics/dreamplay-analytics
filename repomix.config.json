@@ -1,0 +1,32 @@
+{
+    "output": {
+        "filePath": "repomix-output.xml",
+        "style": "xml",
+        "headerText": "DreamPlay Analytics Codebase"
+    },
+    "ignore": {
+        "useGitignore": true,
+        "useDefaultPatterns": true,
+        "customPatterns": [
+            "**/node_modules/**",
+            "**/.next/**",
+            "**/.git/**",
+            "**/dist/**",
+            "**/coverage/**",
+            "**/pnpm-lock.yaml",
+            "**/package-lock.json",
+            "**/yarn.lock",
+            "**/*.ico",
+            "**/*.png",
+            "**/*.jpg",
+            "**/*.jpeg",
+            "**/*.svg",
+            "**/*.gif",
+            "**/.DS_Store",
+            "**/.env",
+            "**/.env.*",
+            "**/README.md",
+            "**/repomix.config.json"
+        ]
+    }
+}
