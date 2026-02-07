@@ -35,7 +35,15 @@ export async function POST(request: Request) {
     const headers = corsHeaders(origin);
 
     const userAgent = (request.headers.get('user-agent') || '').toLowerCase();
-    if (userAgent.includes('bot') || userAgent.includes('spider') || userAgent.includes('crawl')) {
+
+    // More robust bot/crawler/uptime monitor detection
+    const botPatterns = [
+        'bot', 'spider', 'crawl', 'checker', 'monitor', 'status',
+        'uptime', 'probe', 'headless', 'phantom', 'pingdom',
+        'betterstack', 'lighthouse', 'inspect'
+    ];
+
+    if (botPatterns.some(pattern => userAgent.includes(pattern))) {
         return NextResponse.json({ ignored: true }, { status: 200, headers });
     }
 

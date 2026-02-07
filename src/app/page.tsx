@@ -127,8 +127,8 @@ export default function Dashboard() {
             <button
               onClick={() => setFilterAdmin(!filterAdmin)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all border ${filterAdmin
-                  ? 'bg-red-500/20 text-red-400 border-red-500/50'
-                  : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                ? 'bg-red-500/20 text-red-400 border-red-500/50'
+                : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
                 }`}
             >
               <ShieldAlert className="w-4 h-4" />
@@ -292,7 +292,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex gap-4 text-xs text-neutral-500 font-mono">
                       <span className="flex items-center gap-1"><Globe size={10} /> {event.country || 'Unknown'}</span>
-                      <span className="flex items-center gap-1"><Smartphone size={10} /> {event.user_agent?.includes('Mac') ? 'Mac' : 'Device'}</span>
+                      <span className="flex items-center gap-1" title={event.user_agent || 'Unknown UA'}><Smartphone size={10} /> {event.user_agent?.includes('Mac') ? 'Mac' : 'Device'}</span>
                       <span className="opacity-50">{event.ip_address}</span>
                     </div>
                   </div>

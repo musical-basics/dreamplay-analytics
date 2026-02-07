@@ -44,7 +44,7 @@
     function sendEvent(eventName, metadata = {}) {
         const payload = {
             eventName: eventName,
-            path: window.location.href,
+            path: window.location.pathname + window.location.search,
             sessionId: sessionId,
             metadata: metadata,
             timestamp: new Date().toISOString()
