@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 export const runtime = 'edge';
 
-export async function POST(request: Request) {
+export async function POST() {
     // Simple A/B Logic: 50/50 split
     // In a real app, you'd hash the userID or sessionID to ensure consistency.
 
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     });
 }
 
-export async function OPTIONS(request: Request) {
+export async function OPTIONS() {
     return NextResponse.json({}, {
         headers: {
             'Access-Control-Allow-Origin': '*',
