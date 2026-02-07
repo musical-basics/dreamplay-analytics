@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
-  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone
+  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -59,13 +59,14 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('7d');
+  const [filterAdmin, setFilterAdmin] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`/api/stats?range=${range}`);
+        const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}`);
         if (res.ok) {
           const json = await res.json();
           setData(json);
@@ -80,7 +81,7 @@ export default function Dashboard() {
     fetchData();
     const interval = setInterval(fetchData, 5000); // Poll every 5s
     return () => clearInterval(interval);
-  }, [range]);
+  }, [range, filterAdmin]);
 
   const getChartTitle = () => {
     switch (activeMetric) {
@@ -121,18 +122,32 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* TIME RANGE CONTROLS */}
-          <div className="bg-neutral-800 p-1 rounded-lg border border-neutral-700 flex">
-            {['24h', '7d', '30d', 'all'].map((r) => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${range === r ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'
-                  }`}
-              >
-                {r.toUpperCase()}
-              </button>
-            ))}
+          <div className="flex items-center gap-4">
+            {/* ADMIN FILTER TOGGLE */}
+            <button
+              onClick={() => setFilterAdmin(!filterAdmin)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all border ${filterAdmin
+                  ? 'bg-red-500/20 text-red-400 border-red-500/50'
+                  : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                }`}
+            >
+              <ShieldAlert className="w-4 h-4" />
+              {filterAdmin ? 'Admin Hidden' : 'Show Admin'}
+            </button>
+
+            {/* TIME RANGE CONTROLS */}
+            <div className="bg-neutral-800 p-1 rounded-lg border border-neutral-700 flex">
+              {['24h', '7d', '30d', 'all'].map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRange(r)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${range === r ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'
+                    }`}
+                >
+                  {r.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 

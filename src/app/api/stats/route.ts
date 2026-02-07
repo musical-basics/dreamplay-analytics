@@ -11,16 +11,9 @@ const supabase = createClient(
 
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
-    const range = searchParams.get('range') || '7d';
+    const excludeAdmin = searchParams.get('exclude_admin') === 'true';
 
-    const now = new Date();
-    let startTime = new Date();
-
-    // 1. Determine Time Range
-    if (range === '24h') startTime.setHours(now.getHours() - 24);
-    if (range === '7d') startTime.setDate(now.getDate() - 7);
-    if (range === '30d') startTime.setDate(now.getDate() - 30);
-    if (range === 'all') startTime = new Date(0);
+    // ... (existing code) ...
 
     try {
         // 2. Fetch Logs for the Time Range
@@ -32,7 +25,12 @@ export async function GET(request: Request) {
 
         if (error) throw error;
 
-        const safeLogs = logs || [];
+        let safeLogs = logs || [];
+
+        // Filter Admin IP
+        if (excludeAdmin) {
+            safeLogs = safeLogs.filter(log => log.ip_address !== '71.38.79.10');
+        }
 
         // --- CALCULATE METRICS ---
 
