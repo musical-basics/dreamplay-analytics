@@ -29,7 +29,8 @@ export async function GET(request: Request) {
             .from('analytics_logs')
             .select('id, created_at, event_name, path, ip_address, country, session_id, user_agent, metadata')
             .gt('created_at', startTime.toISOString())
-            .order('created_at', { ascending: true }); // Ascending for chart
+            .order('created_at', { ascending: true }) // Ascending for chart
+            .limit(10000); // Increase limit from default 1000 to ensure we capture recent logs
 
         if (error) throw error;
 
