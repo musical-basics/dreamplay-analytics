@@ -60,7 +60,7 @@ export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('7d');
-  const [filterAdmin, setFilterAdmin] = useState(false);
+  const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
   const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
 
