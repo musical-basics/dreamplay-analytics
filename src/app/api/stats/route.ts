@@ -29,12 +29,14 @@ export async function GET(request: Request) {
             .from('analytics_logs')
             .select('id, created_at, event_name, path, ip_address, country, session_id, user_agent, metadata')
             .gt('created_at', startTime.toISOString())
-            .order('created_at', { ascending: true }) // Ascending for chart
-            .limit(10000); // Increase limit from default 1000 to ensure we capture recent logs
+            .gt('created_at', startTime.toISOString())
+            .order('created_at', { ascending: false }) // Descending: Newest first to ensure we capture latest data
+            .limit(10000);
 
         if (error) throw error;
 
-        let safeLogs = logs || [];
+        // Reverse to chronological order (Oldest -> Newest) for Charts and Iteration logic
+        let safeLogs = (logs || []).reverse();
 
         // Filter Admin IP
         if (excludeAdmin) {
