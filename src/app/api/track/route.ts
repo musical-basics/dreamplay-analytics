@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
-export const runtime = 'edge';
+// export const runtime = 'edge'; // Removed to use Node.js runtime for better stability
 
 const allowedOrigins = [
     'https://dreamplaypianos.com',
@@ -43,11 +43,9 @@ export async function POST(request: Request) {
 
     const userAgent = (request.headers.get('user-agent') || '').toLowerCase();
 
-    // More robust bot/crawler/uptime monitor detection
+    // Simplified bot detection - removed overly aggressive terms like 'monitor', 'status'
     const botPatterns = [
-        'bot', 'spider', 'crawl', 'checker', 'monitor', 'status',
-        'uptime', 'probe', 'headless', 'phantom', 'pingdom',
-        'betterstack', 'lighthouse', 'inspect'
+        'bot', 'spider', 'crawl', 'headless', 'lighthouse', 'pingdom'
     ];
 
     if (botPatterns.some(pattern => userAgent.includes(pattern))) {
@@ -58,6 +56,9 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { eventName, path, sessionId, metadata } = body;
 
+        // Truncate path to avoid database errors if URL is too long
+        const safePath = path ? path.substring(0, 2000) : path;
+
         const ip_address = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
         const user_agent = request.headers.get('user-agent');
         const country = request.headers.get('x-vercel-ip-country');
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
             .insert([
                 {
                     event_name: eventName,
-                    path,
+                    path: safePath,
                     session_id: sessionId,
                     metadata,
                     ip_address,
