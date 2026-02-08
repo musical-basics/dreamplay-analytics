@@ -112,22 +112,14 @@ export async function GET(request: Request) {
             };
         });
 
-        // E. Visitor Stats (Last 1000 logs)
-        const { data: recentLogs } = await supabase
-            .from('analytics_logs')
-            .select('ip_address, path, created_at, country, user_agent')
-            .order('created_at', { ascending: false })
-            .limit(1000);
-
-        console.log('Recent Logs Count:', recentLogs?.length);
-        console.log('Newest Log in VisitorStats:', recentLogs?.[0]?.created_at);
+        // E. Visitor Stats (Derived from safeLogs for consistency)
+        // We take the last 1000 logs from the *current filtered view*
+        const recentLogs = [...safeLogs].reverse().slice(0, 1000);
 
         const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string }>();
 
-        (recentLogs || []).forEach(log => {
+        recentLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
-            // Apply Admin Filter to this list too
-            if (excludeAdmin && ip === '71.38.79.10') return;
 
             if (!visitorMap.has(ip)) {
                 visitorMap.set(ip, {
