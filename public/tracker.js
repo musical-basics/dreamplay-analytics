@@ -50,13 +50,21 @@
             timestamp: new Date().toISOString()
         };
 
+        console.log('[Dreamplay Analytics] Sending event:', eventName, payload);
+
         fetch(ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
             keepalive: true
+        }).then(res => {
+            if (!res.ok) {
+                console.error('[Dreamplay Analytics] Server error:', res.status, res.statusText);
+            } else {
+                console.log('[Dreamplay Analytics] Event sent successfully');
+            }
         }).catch(function (err) {
-            console.error('[Dreamplay Analytics] Error:', err);
+            console.error('[Dreamplay Analytics] Network error:', err);
         });
     }
 
