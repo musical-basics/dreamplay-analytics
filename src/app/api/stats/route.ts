@@ -112,14 +112,44 @@ export async function GET(request: Request) {
             };
         });
 
+        // E. Visitor Stats (Last 1000 logs)
+        const { data: recentLogs } = await supabase
+            .from('analytics_logs')
+            .select('ip_address, path, created_at, country, user_agent')
+            .order('created_at', { ascending: false })
+            .limit(1000);
+
+        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string }>();
+
+        (recentLogs || []).forEach(log => {
+            const ip = log.ip_address || 'unknown';
+            // Apply Admin Filter to this list too
+            if (excludeAdmin && ip === '71.38.79.10') return;
+
+            if (!visitorMap.has(ip)) {
+                visitorMap.set(ip, {
+                    ip,
+                    count: 0,
+                    lastPath: log.path,
+                    lastSeen: log.created_at,
+                    country: log.country || 'Unknown',
+                    device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown'
+                });
+            }
+            visitorMap.get(ip)!.count += 1;
+        });
+
+        const visitorStats = Array.from(visitorMap.values()).sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
+
         return NextResponse.json({
             liveUsers,
             totalPageviews,
             uniqueVisitors,
             uniquePages,
             chartData,
-            recentEvents: safeLogs.slice().reverse().slice(0, 50), // Last 50 events, newest first
-            abResults
+            recentEvents: safeLogs.slice().reverse().slice(0, 50),
+            abResults,
+            visitorStats
         });
 
     } catch (error) {
