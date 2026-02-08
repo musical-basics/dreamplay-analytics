@@ -119,6 +119,9 @@ export async function GET(request: Request) {
             .order('created_at', { ascending: false })
             .limit(1000);
 
+        console.log('Recent Logs Count:', recentLogs?.length);
+        console.log('Newest Log in VisitorStats:', recentLogs?.[0]?.created_at);
+
         const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string }>();
 
         (recentLogs || []).forEach(log => {
