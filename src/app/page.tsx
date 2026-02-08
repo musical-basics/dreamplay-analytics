@@ -67,7 +67,14 @@ export default function Dashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}`);
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
+          }
+        });
         if (res.ok) {
           const json = await res.json();
           setData(json);
@@ -128,8 +135,8 @@ export default function Dashboard() {
             <button
               onClick={() => setFilterAdmin(!filterAdmin)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all border ${filterAdmin
-                  ? 'bg-red-500/20 text-red-400 border-red-500/50'
-                  : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                ? 'bg-red-500/20 text-red-400 border-red-500/50'
+                : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
                 }`}
             >
               <ShieldAlert className="w-4 h-4" />

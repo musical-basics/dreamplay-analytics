@@ -150,6 +150,12 @@ export async function GET(request: Request) {
             recentEvents: safeLogs.slice().reverse().slice(0, 50),
             abResults,
             visitorStats
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, max-age=0, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
         });
 
     } catch (error) {
