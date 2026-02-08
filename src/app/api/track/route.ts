@@ -12,9 +12,16 @@ const allowedOrigins = [
 ];
 
 function corsHeaders(origin: string | null): Record<string, string> {
-    if (origin && allowedOrigins.includes(origin)) {
+    // Allow Vercel previews and localhost for testing
+    const isAllowed = origin && (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost')
+    );
+
+    if (isAllowed) {
         return {
-            'Access-Control-Allow-Origin': origin,
+            'Access-Control-Allow-Origin': origin!,
             'Access-Control-Allow-Methods': 'POST, OPTIONS',
             'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         };
