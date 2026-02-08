@@ -1,8 +1,14 @@
 
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 // export const runtime = 'edge'; // Removed to use Node.js runtime for better stability
+
+// Initialize Supabase client locally to ensure environment variables are read correctly in this context
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 const allowedOrigins = [
     'https://dreamplaypianos.com',
@@ -38,6 +44,7 @@ export async function OPTIONS(request: Request) {
 }
 
 export async function POST(request: Request) {
+    console.log('[Track API] Received request');
     const origin = request.headers.get('origin');
     const headers = corsHeaders(origin);
 
@@ -49,12 +56,14 @@ export async function POST(request: Request) {
     ];
 
     if (botPatterns.some(pattern => userAgent.includes(pattern))) {
+        console.log('[Track API] Ignored bot:', userAgent);
         return NextResponse.json({ ignored: true }, { status: 200, headers });
     }
 
     try {
         const body = await request.json();
         const { eventName, path, sessionId, metadata } = body;
+        console.log('[Track API] Processing event:', eventName, path);
 
         // Truncate path to avoid database errors if URL is too long
         const safePath = path ? path.substring(0, 2000) : path;
@@ -78,13 +87,14 @@ export async function POST(request: Request) {
             ]);
 
         if (error) {
-            console.error('Supabase error:', error);
+            console.error('[Track API] Supabase error:', error);
             return NextResponse.json({ error: error.message }, { status: 500, headers });
         }
 
+        console.log('[Track API] Event recorded successfully');
         return NextResponse.json({ success: true }, { status: 200, headers });
     } catch (error) {
-        console.error('Handler error:', error);
+        console.error('[Track API] Handler error:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500, headers });
     }
 }
