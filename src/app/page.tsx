@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
-  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert
+  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -36,6 +36,7 @@ interface DashboardData {
   }[];
   recentEvents: AnalyticsEvent[];
   abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
+  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string }[];
 }
 
 interface CardProps {
@@ -60,7 +61,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('7d');
   const [filterAdmin, setFilterAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
 
   useEffect(() => {
@@ -127,8 +128,8 @@ export default function Dashboard() {
             <button
               onClick={() => setFilterAdmin(!filterAdmin)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all border ${filterAdmin
-                ? 'bg-red-500/20 text-red-400 border-red-500/50'
-                : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                  ? 'bg-red-500/20 text-red-400 border-red-500/50'
+                  : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
                 }`}
             >
               <ShieldAlert className="w-4 h-4" />
@@ -152,8 +153,9 @@ export default function Dashboard() {
         </div>
 
         {/* TAB NAVIGATION */}
-        <div className="flex border-b border-neutral-800">
+        <div className="flex border-b border-neutral-800 overflow-x-auto">
           <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutDashboard size={16} />} label="Traffic Overview" />
+          <TabButton active={activeTab === 'visitors'} onClick={() => setActiveTab('visitors')} icon={<Network size={16} />} label="Visitors" />
           <TabButton active={activeTab === 'ab'} onClick={() => setActiveTab('ab')} icon={<FlaskConical size={16} />} label="A/B Tests" />
           <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<TableProperties size={16} />} label="Raw Logs" />
         </div>
@@ -227,6 +229,52 @@ export default function Dashboard() {
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: VISITORS --- */}
+        {activeTab === 'visitors' && (
+          <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden animate-in fade-in">
+            <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
+              <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                <Network className="w-4 h-4 text-blue-400" /> Recent Visitors (Last 1000 Events)
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm text-neutral-400">
+                <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                  <tr>
+                    <th className="px-6 py-3">IP Address</th>
+                    <th className="px-6 py-3">Country</th>
+                    <th className="px-6 py-3">Page Hits</th>
+                    <th className="px-6 py-3">Last Visited Page</th>
+                    <th className="px-6 py-3">Last Seen</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-700/50">
+                  {data?.visitorStats?.map((visitor, i) => (
+                    <tr key={i} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4 font-mono text-white">{visitor.ip}</td>
+                      <td className="px-6 py-4 flex items-center gap-2">
+                        <Globe size={12} /> {visitor.country}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
+                      </td>
+                      <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
+                        {visitor.lastPath}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {new Date(visitor.lastSeen).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                  {(!data?.visitorStats || data.visitorStats.length === 0) && (
+                    <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
