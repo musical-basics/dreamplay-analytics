@@ -4,7 +4,8 @@
 import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
-  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network
+  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
+  ArrowLeft, Loader2, ExternalLink
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -20,6 +21,19 @@ interface AnalyticsEvent {
   country: string | null;
   session_id: string | null;
   user_agent: string | null;
+}
+
+interface VisitorHistoryVisit {
+  path: string;
+  visited_at: string;
+  duration_seconds: number | null;
+}
+
+interface VisitorHistory {
+  visits: VisitorHistoryVisit[];
+  total_pageviews: number;
+  first_seen: string | null;
+  last_seen: string | null;
 }
 
 interface DashboardData {
@@ -56,6 +70,16 @@ interface TabButtonProps {
 
 type MetricType = 'visitors' | 'pageviews' | 'unique_pages' | 'avg_per_user';
 
+function formatDuration(seconds: number | null): string {
+  if (seconds === null) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins < 60) return `${mins}m ${secs}s`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h ${mins % 60}m`;
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,6 +87,36 @@ export default function Dashboard() {
   const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
   const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
+  const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
+  const [visitorHistory, setVisitorHistory] = useState<VisitorHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Fetch visitor history when an IP is selected
+  useEffect(() => {
+    if (!selectedVisitorIp) {
+      setVisitorHistory(null);
+      return;
+    }
+    let cancelled = false;
+    async function fetchHistory() {
+      setHistoryLoading(true);
+      try {
+        const res = await fetch(
+          `/api/visitor-history?ip=${encodeURIComponent(selectedVisitorIp!)}&range=${range}&exclude_admin=${filterAdmin}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok && !cancelled) {
+          setVisitorHistory(await res.json());
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    }
+    fetchHistory();
+    return () => { cancelled = true; };
+  }, [selectedVisitorIp, range, filterAdmin]);
 
   useEffect(() => {
     async function fetchData() {
@@ -242,47 +296,157 @@ export default function Dashboard() {
 
         {/* --- TAB CONTENT: VISITORS --- */}
         {activeTab === 'visitors' && (
-          <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden animate-in fade-in">
-            <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
-              <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
-                <Network className="w-4 h-4 text-blue-400" /> Recent Visitors (Last 1000 Events)
-              </h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-neutral-400">
-                <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
-                  <tr>
-                    <th className="px-6 py-3">IP Address</th>
-                    <th className="px-6 py-3">Country</th>
-                    <th className="px-6 py-3">Page Hits</th>
-                    <th className="px-6 py-3">Last Visited Page</th>
-                    <th className="px-6 py-3">Last Seen</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-700/50">
-                  {data?.visitorStats?.map((visitor, i) => (
-                    <tr key={i} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 font-mono text-white">{visitor.ip}</td>
-                      <td className="px-6 py-4 flex items-center gap-2">
-                        <Globe size={12} /> {visitor.country}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
-                      </td>
-                      <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
-                        {visitor.lastPath}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {new Date(visitor.lastSeen).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                  {(!data?.visitorStats || data.visitorStats.length === 0) && (
-                    <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+          <div className="animate-in fade-in">
+            {/* If a visitor is selected, show their detail view */}
+            {selectedVisitorIp ? (
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                {/* Header with back button */}
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex items-center gap-4">
+                  <button
+                    onClick={() => setSelectedVisitorIp(null)}
+                    className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-neutral-700"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Visitors
+                  </button>
+                  <div className="h-5 w-px bg-neutral-700" />
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2 font-mono">
+                    <Network className="w-4 h-4 text-blue-400" />
+                    {selectedVisitorIp}
+                  </h2>
+                </div>
+
+                {historyLoading ? (
+                  <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading visitor history…
+                  </div>
+                ) : visitorHistory ? (
+                  <>
+                    {/* Visitor metadata cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Total Pageviews</div>
+                        <div className="text-xl font-bold text-white">{visitorHistory.total_pageviews}</div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Pages Visited</div>
+                        <div className="text-xl font-bold text-white">
+                          {new Set(visitorHistory.visits.map(v => v.path)).size}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">First Seen</div>
+                        <div className="text-sm font-medium text-white">
+                          {visitorHistory.first_seen ? new Date(visitorHistory.first_seen).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Last Seen</div>
+                        <div className="text-sm font-medium text-white">
+                          {visitorHistory.last_seen ? new Date(visitorHistory.last_seen).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Visit history table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-neutral-400">
+                        <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                          <tr>
+                            <th className="px-6 py-3 w-12">#</th>
+                            <th className="px-6 py-3">Page</th>
+                            <th className="px-6 py-3">Visited At</th>
+                            <th className="px-6 py-3">Time on Page</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-700/50">
+                          {visitorHistory.visits.map((visit, i) => (
+                            <tr key={i} className="hover:bg-white/5 transition-colors">
+                              <td className="px-6 py-3 text-neutral-500 font-mono text-xs">{i + 1}</td>
+                              <td className="px-6 py-3 text-neutral-200 max-w-md">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate" title={visit.path}>{visit.path}</span>
+                                  {visit.path.startsWith('http') && (
+                                    <a href={visit.path} target="_blank" rel="noopener noreferrer" className="text-neutral-500 hover:text-blue-400 flex-shrink-0">
+                                      <ExternalLink size={12} />
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-neutral-300">
+                                {new Date(visit.visited_at).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap">
+                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${visit.duration_seconds !== null
+                                    ? 'bg-blue-500/10 text-blue-400'
+                                    : 'bg-neutral-700/50 text-neutral-500'
+                                  }`}>
+                                  {formatDuration(visit.duration_seconds)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                          {visitorHistory.visits.length === 0 && (
+                            <tr><td colSpan={4} className="px-6 py-8 text-center text-neutral-500">No page visits recorded.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <div className="px-6 py-12 text-center text-neutral-500">Failed to load visitor history.</div>
+                )}
+              </div>
+            ) : (
+              /* Visitor list table */
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                    <Network className="w-4 h-4 text-blue-400" /> Recent Visitors (Last 1000 Events)
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-neutral-400">
+                    <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                      <tr>
+                        <th className="px-6 py-3">IP Address</th>
+                        <th className="px-6 py-3">Country</th>
+                        <th className="px-6 py-3">Page Hits</th>
+                        <th className="px-6 py-3">Last Visited Page</th>
+                        <th className="px-6 py-3">Last Seen</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-700/50">
+                      {data?.visitorStats?.map((visitor, i) => (
+                        <tr
+                          key={i}
+                          onClick={() => setSelectedVisitorIp(visitor.ip)}
+                          className="hover:bg-white/5 transition-colors cursor-pointer group"
+                        >
+                          <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
+                          <td className="px-6 py-4 flex items-center gap-2">
+                            <Globe size={12} /> {visitor.country}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
+                          </td>
+                          <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
+                            {visitor.lastPath}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {new Date(visitor.lastSeen).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                      {(!data?.visitorStats || data.visitorStats.length === 0) && (
+                        <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
