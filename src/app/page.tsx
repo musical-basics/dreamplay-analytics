@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
-  ArrowLeft, Loader2, ExternalLink
+  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -53,6 +53,17 @@ interface DashboardData {
   visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string }[];
 }
 
+interface InsightsData {
+  totalConverters: number;
+  totalVisitors: number;
+  conversionRate: string;
+  pagesBeforePurchase: { page: string; converterCount: number; percentage: number }[];
+  pageEngagement: { page: string; views: number; uniqueVisitors: number; avgTimeSeconds: number | null; exitRate: number }[];
+  topFlows: { flow: string; count: number }[];
+  converterAvg: { pagesPerSession: string; sessionDuration: number };
+  allVisitorAvg: { pagesPerSession: string; sessionDuration: number };
+}
+
 interface CardProps {
   title: string;
   value: string | number;
@@ -69,6 +80,7 @@ interface TabButtonProps {
 }
 
 type MetricType = 'visitors' | 'pageviews' | 'unique_pages' | 'avg_per_user';
+type SortField = 'views' | 'uniqueVisitors' | 'avgTimeSeconds' | 'exitRate';
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
@@ -85,11 +97,14 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('7d');
   const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
-  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'insights'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
   const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
   const [visitorHistory, setVisitorHistory] = useState<VisitorHistory | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [engagementSort, setEngagementSort] = useState<{ field: SortField; asc: boolean }>({ field: 'views', asc: false });
 
   // Fetch visitor history when an IP is selected
   useEffect(() => {
@@ -117,6 +132,30 @@ export default function Dashboard() {
     fetchHistory();
     return () => { cancelled = true; };
   }, [selectedVisitorIp, range, filterAdmin]);
+
+  // Fetch insights data when insights tab is active
+  useEffect(() => {
+    if (activeTab !== 'insights') return;
+    let cancelled = false;
+    async function fetchInsights() {
+      setInsightsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/insights?range=${range}&exclude_admin=${filterAdmin}&_t=${Date.now()}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok && !cancelled) {
+          setInsightsData(await res.json());
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setInsightsLoading(false);
+      }
+    }
+    fetchInsights();
+    return () => { cancelled = true; };
+  }, [activeTab, range, filterAdmin]);
 
   useEffect(() => {
     async function fetchData() {
@@ -217,6 +256,7 @@ export default function Dashboard() {
         <div className="flex border-b border-neutral-800 overflow-x-auto">
           <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutDashboard size={16} />} label="Traffic Overview" />
           <TabButton active={activeTab === 'visitors'} onClick={() => setActiveTab('visitors')} icon={<Network size={16} />} label="Visitors" />
+          <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<TrendingUp size={16} />} label="Insights" />
           <TabButton active={activeTab === 'ab'} onClick={() => setActiveTab('ab')} icon={<FlaskConical size={16} />} label="A/B Tests" />
           <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<TableProperties size={16} />} label="Raw Logs" />
         </div>
@@ -379,8 +419,8 @@ export default function Dashboard() {
                               </td>
                               <td className="px-6 py-3 whitespace-nowrap">
                                 <span className={`font-mono text-xs px-2 py-0.5 rounded ${visit.duration_seconds !== null
-                                    ? 'bg-blue-500/10 text-blue-400'
-                                    : 'bg-neutral-700/50 text-neutral-500'
+                                  ? 'bg-blue-500/10 text-blue-400'
+                                  : 'bg-neutral-700/50 text-neutral-500'
                                   }`}>
                                   {formatDuration(visit.duration_seconds)}
                                 </span>
@@ -446,6 +486,154 @@ export default function Dashboard() {
                   </table>
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: INSIGHTS --- */}
+        {activeTab === 'insights' && (
+          <div className="space-y-6 animate-in fade-in">
+            {insightsLoading ? (
+              <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Analyzing visitor journeys…
+              </div>
+            ) : insightsData ? (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-neutral-800 p-5 rounded-xl border border-neutral-700">
+                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Visitors Who Reached Checkout</div>
+                    <div className="text-3xl font-bold text-white">{insightsData.totalConverters}<span className="text-lg text-neutral-500 ml-1">/ {insightsData.totalVisitors}</span></div>
+                    <div className="text-sm text-blue-400 mt-1">{insightsData.conversionRate}% conversion rate</div>
+                  </div>
+                  <div className="bg-neutral-800 p-5 rounded-xl border border-neutral-700">
+                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Converter Avg. Session</div>
+                    <div className="text-3xl font-bold text-white">{insightsData.converterAvg.pagesPerSession} <span className="text-lg text-neutral-500">pages</span></div>
+                    <div className="text-sm text-neutral-400 mt-1">{formatDuration(insightsData.converterAvg.sessionDuration)} avg duration</div>
+                  </div>
+                  <div className="bg-neutral-800 p-5 rounded-xl border border-neutral-700">
+                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">All Visitor Avg. Session</div>
+                    <div className="text-3xl font-bold text-white">{insightsData.allVisitorAvg.pagesPerSession} <span className="text-lg text-neutral-500">pages</span></div>
+                    <div className="text-sm text-neutral-400 mt-1">{formatDuration(insightsData.allVisitorAvg.sessionDuration)} avg duration</div>
+                  </div>
+                </div>
+
+                {/* Panel 1: Pages That Drive Purchases */}
+                <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                  <div className="p-4 border-b border-neutral-700">
+                    <h3 className="font-semibold text-neutral-200 flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-green-400" />
+                      Pages That Drive Purchases
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-1">Of visitors who reached a checkout page, what % visited each page beforehand</p>
+                  </div>
+                  {insightsData.pagesBeforePurchase.length === 0 ? (
+                    <div className="px-6 py-12 text-center text-neutral-500">No converters found in this time range.</div>
+                  ) : (
+                    <div className="divide-y divide-neutral-700/50">
+                      {insightsData.pagesBeforePurchase.map((item, i) => (
+                        <div key={i} className="px-6 py-3 flex items-center gap-4 hover:bg-white/5 transition-colors">
+                          <span className="text-neutral-500 font-mono text-xs w-6 text-right">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-neutral-200 text-sm truncate" title={item.page}>{item.page}</span>
+                              <span className="text-sm font-mono ml-3 flex-shrink-0">
+                                <span className="text-green-400 font-bold">{item.percentage}%</span>
+                                <span className="text-neutral-500 ml-1">({item.converterCount})</span>
+                              </span>
+                            </div>
+                            <div className="w-full bg-neutral-700/50 rounded-full h-1.5">
+                              <div
+                                className="bg-green-500/70 h-1.5 rounded-full transition-all duration-500"
+                                style={{ width: `${item.percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Panel 1.5: Top Page Flows */}
+                {insightsData.topFlows.length > 0 && (
+                  <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                    <div className="p-4 border-b border-neutral-700">
+                      <h3 className="font-semibold text-neutral-200 flex items-center gap-2">
+                        <ArrowUpRight className="w-4 h-4 text-blue-400" />
+                        Common Converter Page Flows
+                      </h3>
+                      <p className="text-xs text-neutral-500 mt-1">Most frequent page-to-page transitions among visitors who reached checkout</p>
+                    </div>
+                    <div className="divide-y divide-neutral-700/50">
+                      {insightsData.topFlows.map((flow, i) => (
+                        <div key={i} className="px-6 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-neutral-500 font-mono text-xs w-6 text-right">{i + 1}</span>
+                            <span className="text-neutral-200 text-sm truncate">{flow.flow}</span>
+                          </div>
+                          <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-mono flex-shrink-0 ml-3">{flow.count}×</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Panel 2: Page Engagement Table */}
+                <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                  <div className="p-4 border-b border-neutral-700">
+                    <h3 className="font-semibold text-neutral-200 flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-purple-400" />
+                      Page Engagement
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-1">Click column headers to sort</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-neutral-400">
+                      <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                        <tr>
+                          <th className="px-6 py-3">Page</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'views', asc: s.field === 'views' ? !s.asc : false }))}>Views {engagementSort.field === 'views' && (engagementSort.asc ? '↑' : '↓')}</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'uniqueVisitors', asc: s.field === 'uniqueVisitors' ? !s.asc : false }))}>Unique Visitors {engagementSort.field === 'uniqueVisitors' && (engagementSort.asc ? '↑' : '↓')}</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'avgTimeSeconds', asc: s.field === 'avgTimeSeconds' ? !s.asc : false }))}>Avg. Time {engagementSort.field === 'avgTimeSeconds' && (engagementSort.asc ? '↑' : '↓')}</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'exitRate', asc: s.field === 'exitRate' ? !s.asc : false }))}>Exit Rate {engagementSort.field === 'exitRate' && (engagementSort.asc ? '↑' : '↓')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-700/50">
+                        {[...insightsData.pageEngagement]
+                          .sort((a, b) => {
+                            const aVal = a[engagementSort.field] ?? -1;
+                            const bVal = b[engagementSort.field] ?? -1;
+                            return engagementSort.asc ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+                          })
+                          .map((page, i) => (
+                            <tr key={i} className="hover:bg-white/5 transition-colors">
+                              <td className="px-6 py-3 text-neutral-200 max-w-xs truncate" title={page.page}>{page.page}</td>
+                              <td className="px-6 py-3 font-mono">{page.views}</td>
+                              <td className="px-6 py-3 font-mono">{page.uniqueVisitors}</td>
+                              <td className="px-6 py-3">
+                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${page.avgTimeSeconds !== null ? 'bg-blue-500/10 text-blue-400' : 'bg-neutral-700/50 text-neutral-500'}`}>
+                                  {formatDuration(page.avgTimeSeconds)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-3">
+                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${page.exitRate > 30 ? 'bg-red-500/10 text-red-400' :
+                                  page.exitRate > 15 ? 'bg-yellow-500/10 text-yellow-400' :
+                                    'bg-green-500/10 text-green-400'
+                                  }`}>
+                                  {page.exitRate}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="px-6 py-12 text-center text-neutral-500">Failed to load insights data.</div>
             )}
           </div>
         )}
