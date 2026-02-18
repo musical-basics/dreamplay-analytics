@@ -34,10 +34,9 @@ export function isSuspectedBot(
     // Known bot IPs (localhost etc)
     if (KNOWN_BOT_IPS.includes(ip)) return true;
 
-    // Single-hit visitors from cloud/datacenter IPs are almost certainly bots
-    if (pageCount <= 1 && CLOUD_IP_PREFIXES.some(prefix => ip.startsWith(prefix))) {
-        return true;
-    }
+    // Any single-hit visitor is almost certainly a bot or irrelevant bounce
+    // Real humans who spent 0 seconds provide no useful analytics data anyway
+    if (pageCount <= 1) return true;
 
     return false;
 }
