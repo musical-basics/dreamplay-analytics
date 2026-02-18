@@ -1,6 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { isSuspectedBot } from '@/lib/botDetection';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get('range') || '7d';
     const excludeAdmin = searchParams.get('exclude_admin') === 'true';
+    const excludeBots = searchParams.get('exclude_bots') === 'true';
 
     const now = new Date();
     let startTime = new Date();
@@ -61,6 +63,19 @@ export async function GET(request: Request) {
 
         if (excludeAdmin) {
             safeLogs = safeLogs.filter(log => log.ip_address !== '71.38.79.10');
+        }
+
+        // Filter suspected bots
+        if (excludeBots) {
+            const ipPageCounts = new Map<string, number>();
+            safeLogs.forEach(log => {
+                const ip = log.ip_address || 'unknown';
+                ipPageCounts.set(ip, (ipPageCounts.get(ip) || 0) + 1);
+            });
+            safeLogs = safeLogs.filter(log => {
+                const ip = log.ip_address || 'unknown';
+                return !isSuspectedBot(ip, ipPageCounts.get(ip) || 0);
+            });
         }
 
         // ============================

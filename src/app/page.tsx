@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
-  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3
+  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -97,6 +97,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('7d');
   const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
+  const [filterBots, setFilterBots] = useState(true); // Default to Bots Hidden
   const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'insights'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
   const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
@@ -117,7 +118,7 @@ export default function Dashboard() {
       setHistoryLoading(true);
       try {
         const res = await fetch(
-          `/api/visitor-history?ip=${encodeURIComponent(selectedVisitorIp!)}&range=${range}&exclude_admin=${filterAdmin}`,
+          `/api/visitor-history?ip=${encodeURIComponent(selectedVisitorIp!)}&range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}`,
           { cache: 'no-store' }
         );
         if (res.ok && !cancelled) {
@@ -141,7 +142,7 @@ export default function Dashboard() {
       setInsightsLoading(true);
       try {
         const res = await fetch(
-          `/api/insights?range=${range}&exclude_admin=${filterAdmin}&_t=${Date.now()}`,
+          `/api/insights?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${Date.now()}`,
           { cache: 'no-store' }
         );
         if (res.ok && !cancelled) {
@@ -155,13 +156,13 @@ export default function Dashboard() {
     }
     fetchInsights();
     return () => { cancelled = true; };
-  }, [activeTab, range, filterAdmin]);
+  }, [activeTab, range, filterAdmin, filterBots]);
 
   useEffect(() => {
     async function fetchData() {
       try {
         const timestamp = new Date().getTime();
-        const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&_t=${timestamp}`, {
+        const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, {
           cache: 'no-store',
           headers: {
             'Pragma': 'no-cache',
@@ -182,7 +183,7 @@ export default function Dashboard() {
     fetchData();
     const interval = setInterval(fetchData, 5000); // Poll every 5s
     return () => clearInterval(interval);
-  }, [range, filterAdmin]);
+  }, [range, filterAdmin, filterBots]);
 
   const getChartTitle = () => {
     switch (activeMetric) {
@@ -234,6 +235,18 @@ export default function Dashboard() {
             >
               <ShieldAlert className="w-4 h-4" />
               {filterAdmin ? 'Admin Hidden' : 'Show Admin'}
+            </button>
+
+            {/* BOT FILTER TOGGLE */}
+            <button
+              onClick={() => setFilterBots(!filterBots)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all border ${filterBots
+                ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
+                : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                }`}
+            >
+              <Bot className="w-4 h-4" />
+              {filterBots ? 'Bots Hidden' : 'Show Bots'}
             </button>
 
             {/* TIME RANGE CONTROLS */}
