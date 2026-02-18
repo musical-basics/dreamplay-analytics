@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { isSuspectedBot } from '@/lib/botDetection';
+import { isAdminIP } from '@/lib/adminIPs';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
         let safeLogs = logs || [];
 
         if (excludeAdmin) {
-            safeLogs = safeLogs.filter(log => log.ip_address !== '71.38.79.10');
+            safeLogs = safeLogs.filter(log => !isAdminIP(log.ip_address || ''));
         }
 
         // Filter suspected bots

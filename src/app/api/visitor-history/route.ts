@@ -1,6 +1,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { isAdminIP } from '@/lib/adminIPs';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,8 +20,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Missing ip parameter' }, { status: 400 });
     }
 
-    // If admin filtering is on and the requested IP is the admin IP, return empty
-    if (excludeAdmin && ip === '71.38.79.10') {
+    // If admin filtering is on and the requested IP is an admin IP, return empty
+    if (excludeAdmin && isAdminIP(ip)) {
         return NextResponse.json({ visits: [], total_pageviews: 0, first_seen: null, last_seen: null });
     }
 
