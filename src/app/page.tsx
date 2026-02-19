@@ -132,7 +132,7 @@ export default function Dashboard() {
     }
     fetchHistory();
     return () => { cancelled = true; };
-  }, [selectedVisitorIp, range, filterAdmin]);
+  }, [selectedVisitorIp, range, filterAdmin, filterBots]);
 
   // Fetch insights data when insights tab is active
   useEffect(() => {
