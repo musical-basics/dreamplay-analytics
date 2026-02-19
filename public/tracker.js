@@ -29,6 +29,19 @@
         setCookie('dp_session_id', sessionId, 365);
     }
 
+    function getQueryParam(name) {
+        try {
+            var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+            return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+        } catch (e) { return null; }
+    }
+
+    var emailParam = getQueryParam('em');
+    if (emailParam) {
+        setCookie('dp_user_email', emailParam, 365);
+    }
+    var userEmail = getCookie('dp_user_email');
+
     // Use the production data subdomain 
     // IMPORTANT: For local testing, this might fail to track if not deployed.
     // But reqs say "Use the full production URL placeholder".
@@ -42,6 +55,10 @@
     // This script is for the deployed sites.
 
     function sendEvent(eventName, metadata = {}) {
+        if (userEmail && !metadata.email) {
+            metadata.email = userEmail;
+        }
+
         const payload = {
             eventName: eventName,
             path: window.location.href,

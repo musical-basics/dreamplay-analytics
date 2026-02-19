@@ -50,7 +50,7 @@ interface DashboardData {
   }[];
   recentEvents: AnalyticsEvent[];
   abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
-  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string }[];
+  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string }[];
 }
 
 interface InsightsData {
@@ -366,6 +366,11 @@ export default function Dashboard() {
                   <h2 className="font-semibold text-neutral-200 flex items-center gap-2 font-mono">
                     <Network className="w-4 h-4 text-blue-400" />
                     {selectedVisitorIp}
+                    {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email && (
+                      <span className="text-sm font-sans font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2">
+                        {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email}
+                      </span>
+                    )}
                   </h2>
                 </div>
 
@@ -464,6 +469,7 @@ export default function Dashboard() {
                     <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                       <tr>
                         <th className="px-6 py-3">IP Address</th>
+                        <th className="px-6 py-3">Email (if found)</th>
                         <th className="px-6 py-3">Country</th>
                         <th className="px-6 py-3">Page Hits</th>
                         <th className="px-6 py-3">Last Visited Page</th>
@@ -478,6 +484,13 @@ export default function Dashboard() {
                           className="hover:bg-white/5 transition-colors cursor-pointer group"
                         >
                           <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {visitor.email ? (
+                              <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{visitor.email}</span>
+                            ) : (
+                              <span className="text-neutral-600 text-xs">—</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 flex items-center gap-2">
                             <Globe size={12} /> {visitor.country}
                           </td>
@@ -493,7 +506,7 @@ export default function Dashboard() {
                         </tr>
                       ))}
                       {(!data?.visitorStats || data.visitorStats.length === 0) && (
-                        <tr><td colSpan={5} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                        <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
                       )}
                     </tbody>
                   </table>

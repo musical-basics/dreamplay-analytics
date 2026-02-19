@@ -136,7 +136,15 @@ export async function GET(request: Request) {
         // We take the last 1000 logs from the *current filtered view*
         const recentLogs = [...safeLogs].reverse().slice(0, 1000);
 
-        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string }>();
+        // Pre-calculate email-to-IP mapping for ALL logs retrieved so far to catch older emails
+        const ipToEmailMap = new Map<string, string>();
+        safeLogs.forEach(log => {
+            if (log.metadata?.email && log.ip_address) {
+                ipToEmailMap.set(log.ip_address, log.metadata.email);
+            }
+        });
+
+        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string }>();
 
         recentLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
@@ -148,7 +156,8 @@ export async function GET(request: Request) {
                     lastPath: log.path,
                     lastSeen: log.created_at,
                     country: log.country || 'Unknown',
-                    device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown'
+                    device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
+                    email: ipToEmailMap.get(ip)
                 });
             }
             visitorMap.get(ip)!.count += 1;
