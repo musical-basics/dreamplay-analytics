@@ -12,11 +12,11 @@ echo "⏳ Waiting for Vercel to register the build..."
 sleep 10
 
 # 3. Get the latest deployment URL
-DEPLOYMENT_URL=$(vercel ls --target production --limit 1 2>/dev/null | awk 'NR==2 {print $2}')
+DEPLOYMENT_URL=$(npx -y vercel ls --target production --limit 1 2>/dev/null | awk 'NR==2 {print $2}')
 
 if [ -z "$DEPLOYMENT_URL" ]; then
   echo "⚠️  Could not detect deployment URL. Trying with 'vercel ls' (no target filter)..."
-  DEPLOYMENT_URL=$(vercel ls --limit 1 2>/dev/null | awk 'NR==2 {print $2}')
+  DEPLOYMENT_URL=$(npx -y vercel ls --limit 1 2>/dev/null | awk 'NR==2 {print $2}')
 fi
 
 if [ -z "$DEPLOYMENT_URL" ]; then
@@ -26,7 +26,7 @@ fi
 
 # 4. Inspect and wait for build completion
 echo "📡 Tracking deployment: $DEPLOYMENT_URL"
-vercel inspect "$DEPLOYMENT_URL" --wait
+npx -y vercel inspect "$DEPLOYMENT_URL" --wait
 
 # 5. Report result
 if [ $? -eq 0 ]; then
