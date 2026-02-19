@@ -154,7 +154,16 @@ export async function GET(request: Request) {
             visitorMap.get(ip)!.count += 1;
         });
 
-        const visitorStats = Array.from(visitorMap.values()).sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
+        let visitorStats = Array.from(visitorMap.values()).sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
+
+        // Re-apply filters to the final visitor list to ensure consistency
+        // (the global filters run on full safeLogs, but visitorStats is built from a 1000-log slice)
+        if (excludeAdmin) {
+            visitorStats = visitorStats.filter(v => !isAdminIP(v.ip));
+        }
+        if (excludeBots) {
+            visitorStats = visitorStats.filter(v => !isSuspectedBot(v.ip, v.count));
+        }
 
         return NextResponse.json({
             liveUsers,
