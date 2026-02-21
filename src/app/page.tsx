@@ -383,17 +383,24 @@ export default function Dashboard() {
                           if (!emailInput.trim() || !selectedVisitorIp) return;
                           setEmailSaving(true);
                           try {
-                            await fetch('/api/ip-email', {
+                            const postRes = await fetch('/api/ip-email', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ ip: selectedVisitorIp, email: emailInput.trim() }),
                             });
+                            const postData = await postRes.json();
+                            if (!postRes.ok) {
+                              alert(`Failed to save: ${postData.error || postRes.statusText}`);
+                              setEmailSaving(false);
+                              return;
+                            }
                             // Refresh data to show the new email
                             const timestamp = new Date().getTime();
                             const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, { cache: 'no-store' });
                             if (res.ok) setData(await res.json());
                           } catch (err) {
                             console.error(err);
+                            alert(`Network error: ${err}`);
                           } finally {
                             setEmailSaving(false);
                             setAttachingEmail(false);
