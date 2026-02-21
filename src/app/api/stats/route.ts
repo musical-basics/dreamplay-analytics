@@ -144,6 +144,15 @@ export async function GET(request: Request) {
             }
         });
 
+        // Fetch manual IP→email mappings and merge (manual takes priority)
+        const { data: manualMappings } = await supabase
+            .from('ip_email_map')
+            .select('ip_address, email');
+
+        (manualMappings || []).forEach((row: { ip_address: string; email: string }) => {
+            ipToEmailMap.set(row.ip_address, row.email);
+        });
+
         const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string }>();
 
         recentLogs.forEach(log => {

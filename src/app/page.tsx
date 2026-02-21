@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
-  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot
+  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -106,6 +106,9 @@ export default function Dashboard() {
   const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
   const [engagementSort, setEngagementSort] = useState<{ field: SortField; asc: boolean }>({ field: 'views', asc: false });
+  const [attachingEmail, setAttachingEmail] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
 
   // Fetch visitor history when an IP is selected
   useEffect(() => {
@@ -372,6 +375,66 @@ export default function Dashboard() {
                       </span>
                     )}
                   </h2>
+                  <div className="ml-auto flex items-center gap-2">
+                    {attachingEmail ? (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (!emailInput.trim() || !selectedVisitorIp) return;
+                          setEmailSaving(true);
+                          try {
+                            await fetch('/api/ip-email', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ip: selectedVisitorIp, email: emailInput.trim() }),
+                            });
+                            // Refresh data to show the new email
+                            const timestamp = new Date().getTime();
+                            const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, { cache: 'no-store' });
+                            if (res.ok) setData(await res.json());
+                          } catch (err) {
+                            console.error(err);
+                          } finally {
+                            setEmailSaving(false);
+                            setAttachingEmail(false);
+                            setEmailInput('');
+                          }
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <input
+                          type="email"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          placeholder="user@example.com"
+                          autoFocus
+                          className="bg-neutral-900 border border-neutral-600 rounded-md px-3 py-1.5 text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-56"
+                        />
+                        <button
+                          type="submit"
+                          disabled={emailSaving || !emailInput.trim()}
+                          className="p-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors"
+                        >
+                          {emailSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setAttachingEmail(false); setEmailInput(''); }}
+                          className="p-1.5 rounded-md bg-neutral-700 hover:bg-neutral-600 text-neutral-300 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => setAttachingEmail(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 transition-colors"
+                      >
+                        <Mail size={14} />
+                        Attach Email
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {historyLoading ? (
