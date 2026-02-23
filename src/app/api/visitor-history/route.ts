@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { isAdminIP } from '@/lib/adminIPs';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -73,7 +74,9 @@ export async function GET(request: Request) {
             last_seen: pageviews.length > 0 ? pageviews[pageviews.length - 1].created_at : null,
         }, {
             headers: {
-                'Cache-Control': 'no-store, max-age=0, must-revalidate',
+                'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+                'CDN-Cache-Control': 'no-store',
+                'Vercel-CDN-Cache-Control': 'no-store',
                 'Pragma': 'no-cache',
                 'Expires': '0',
             },
