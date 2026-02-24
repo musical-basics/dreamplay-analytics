@@ -1,46 +1,43 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Lock, Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
-const STORAGE_KEY = 'dp_analytics_auth';
-const CORRECT_PASSWORD = 'sorenkier';
-
-export default function AuthGate({ children }: { children: React.ReactNode }) {
-    const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState(false);
+    const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const router = useRouter();
 
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        setAuthenticated(stored === 'true');
-    }, []);
-
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (password === CORRECT_PASSWORD) {
-            localStorage.setItem(STORAGE_KEY, 'true');
-            setAuthenticated(true);
-            setError(false);
-        } else {
+        if (!password.trim() || loading) return;
+
+        setLoading(true);
+        setError(false);
+
+        try {
+            const res = await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+
+            if (res.ok) {
+                router.push('/');
+                router.refresh();
+            } else {
+                setError(true);
+                setPassword('');
+            }
+        } catch {
             setError(true);
-            setPassword('');
+        } finally {
+            setLoading(false);
         }
     };
-
-    // Still checking localStorage
-    if (authenticated === null) {
-        return (
-            <div className="min-h-screen bg-neutral-900 flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            </div>
-        );
-    }
-
-    if (authenticated) {
-        return <>{children}</>;
-    }
 
     return (
         <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-6 font-sans">
@@ -68,8 +65,8 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                             placeholder="Password"
                             autoFocus
                             className={`w-full bg-neutral-900 border rounded-lg px-4 py-3 pr-10 text-white placeholder-neutral-600 text-sm focus:outline-none focus:ring-2 transition-all ${error
-                                    ? 'border-red-500/50 focus:ring-red-500/30'
-                                    : 'border-neutral-700 focus:ring-blue-500/30 focus:border-blue-500/50'
+                                ? 'border-red-500/50 focus:ring-red-500/30'
+                                : 'border-neutral-700 focus:ring-blue-500/30 focus:border-blue-500/50'
                                 }`}
                         />
                         <button
@@ -91,9 +88,10 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
                     {/* Submit */}
                     <button
                         type="submit"
-                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-colors text-sm"
+                        disabled={loading}
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors text-sm"
                     >
-                        Unlock Dashboard
+                        {loading ? 'Verifying...' : 'Unlock Dashboard'}
                     </button>
                 </form>
             </div>

@@ -163,6 +163,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchData() {
+      // Skip fetch if tab is hidden
+      if (document.hidden) return;
       try {
         const timestamp = new Date().getTime();
         const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, {
@@ -183,9 +185,18 @@ export default function Dashboard() {
       }
     }
 
+    // Immediately fetch on tab re-focus
+    function handleVisibility() {
+      if (!document.hidden) fetchData();
+    }
+
     fetchData();
-    const interval = setInterval(fetchData, 5000); // Poll every 5s
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchData, 30000); // Poll every 30s
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [range, filterAdmin, filterBots]);
 
   const getChartTitle = () => {
