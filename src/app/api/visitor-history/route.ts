@@ -37,8 +37,9 @@ export async function GET(request: Request) {
     try {
         const { data: logs, error } = await supabase
             .from('analytics_logs')
-            .select('created_at, event_name, path')
+            .select('created_at, event_name, path, metadata')
             .eq('ip_address', ip)
+            .in('event_name', ['pageview', 'page_leave'])
             .gt('created_at', startTime.toISOString())
             .order('created_at', { ascending: true })
             .limit(5000);
@@ -47,19 +48,36 @@ export async function GET(request: Request) {
 
         const safeLogs = logs || [];
 
-        // Filter to pageview events only for the visits timeline
+        // Separate the two event types
         const pageviews = safeLogs.filter(l => l.event_name === 'pageview');
+        const leaveEvents = safeLogs.filter(l => l.event_name === 'page_leave');
 
-        // Calculate time on page: difference between consecutive pageview timestamps
+        // Calculate time on page
         const visits = pageviews.map((pv, i) => {
             let durationSeconds: number | null = null;
-            if (i < pageviews.length - 1) {
-                const current = new Date(pv.created_at).getTime();
-                const next = new Date(pageviews[i + 1].created_at).getTime();
-                durationSeconds = Math.round((next - current) / 1000);
-                // Cap at 30 minutes — longer likely means they left
-                if (durationSeconds > 1800) durationSeconds = null;
+            const pvTime = new Date(pv.created_at).getTime();
+            const nextPvTime = i < pageviews.length - 1
+                ? new Date(pageviews[i + 1].created_at).getTime()
+                : Infinity;
+
+            // 1. Look for our explicit "page_leave" event for this specific page visit
+            const leaveEvent = leaveEvents.find(l =>
+                l.path === pv.path &&
+                new Date(l.created_at).getTime() >= pvTime &&
+                new Date(l.created_at).getTime() < nextPvTime
+            );
+
+            if (leaveEvent && leaveEvent.metadata?.duration_seconds) {
+                // Use the exact time captured when they closed the tab!
+                durationSeconds = Number(leaveEvent.metadata.duration_seconds);
+            } else if (i < pageviews.length - 1) {
+                // Fallback: Math between two pageviews
+                durationSeconds = Math.round((nextPvTime - pvTime) / 1000);
             }
+
+            // Cap extremely long idle times at 2 hours
+            if (durationSeconds !== null && durationSeconds > 7200) durationSeconds = null;
+
             return {
                 path: pv.path,
                 visited_at: pv.created_at,

@@ -95,4 +95,29 @@
             sendEvent('pageview');
         });
     }
+
+    // --- TIME ON PAGE TRACKING (Exit Beacon) ---
+    var pageLoadTime = Date.now();
+    var hasSentLeave = false;
+
+    function sendLeaveEvent() {
+        if (hasSentLeave) return;
+        var duration = Math.round((Date.now() - pageLoadTime) / 1000);
+
+        // Ignore instant 0-second bot bounces
+        if (duration > 1) {
+            sendEvent('page_leave', { duration_seconds: duration });
+            hasSentLeave = true;
+        }
+    }
+
+    // Modern exit tracking (handles tab switch, tab close, phone lock)
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') {
+            sendLeaveEvent();
+        }
+    });
+
+    // Fallback for older browsers
+    window.addEventListener('pagehide', sendLeaveEvent);
 })();
