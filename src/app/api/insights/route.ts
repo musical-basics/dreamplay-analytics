@@ -53,8 +53,8 @@ export async function GET(request: Request) {
     try {
         const { data: logs, error } = await supabase
             .from('analytics_logs')
-            .select('created_at, event_name, path, ip_address, session_id')
-            .eq('event_name', 'pageview')
+            .select('created_at, event_name, path, ip_address, session_id, metadata')
+            .in('event_name', ['pageview', 'page_leave'])
             .gt('created_at', startTime.toISOString())
             .order('created_at', { ascending: true })
             .limit(20000);
@@ -161,8 +161,11 @@ export async function GET(request: Request) {
 
         let totalSessions = 0;
 
-        visitorMap.forEach((visits, ip) => {
+        visitorMap.forEach((allVisits, ip) => {
             totalSessions++;
+
+            // Only count pageviews for stats, but keep all events for duration lookup
+            const visits = allVisits.filter(v => v.event_name === 'pageview');
 
             visits.forEach((v, i) => {
                 const cleanPath = cleanPagePath(v.path);
@@ -181,12 +184,26 @@ export async function GET(request: Request) {
                 stats.views++;
                 stats.visitors.add(ip);
 
-                // Time on page = diff to next pageview
-                if (i < visits.length - 1) {
-                    const current = new Date(v.created_at).getTime();
-                    const next = new Date(visits[i + 1].created_at).getTime();
-                    const dur = (next - current) / 1000;
-                    if (dur > 0 && dur <= 1800) { // Cap at 30 min
+                // --- Updated Time on Page Logic ---
+                const pvTime = new Date(v.created_at).getTime();
+                const nextPvTime = i < visits.length - 1 ? new Date(visits[i + 1].created_at).getTime() : Infinity;
+
+                // Find the associated exit beacon for this specific page view
+                const leaveEvent = allVisits.find(l =>
+                    l.event_name === 'page_leave' &&
+                    cleanPagePath(l.path) === cleanPath &&
+                    new Date(l.created_at).getTime() >= pvTime &&
+                    new Date(l.created_at).getTime() < nextPvTime
+                );
+
+                if (leaveEvent && leaveEvent.metadata?.duration_seconds) {
+                    // 1. Use the exact time captured by the exit beacon
+                    stats.totalDuration += Number(leaveEvent.metadata.duration_seconds);
+                    stats.durationCount++;
+                } else if (i < visits.length - 1) {
+                    // 2. Fallback to math between two pageviews if beacon failed
+                    const dur = (nextPvTime - pvTime) / 1000;
+                    if (dur > 0 && dur <= 1800) {
                         stats.totalDuration += dur;
                         stats.durationCount++;
                     }

@@ -170,7 +170,11 @@ export async function GET(request: Request) {
                     email: ipToEmailMap.get(ip)
                 });
             }
-            visitorMap.get(ip)!.count += 1;
+
+            // ONLY increment the count if it's a pageview!
+            if (log.event_name === 'pageview') {
+                visitorMap.get(ip)!.count += 1;
+            }
         });
 
         let visitorStats = Array.from(visitorMap.values()).sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
