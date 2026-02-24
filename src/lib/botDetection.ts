@@ -4,10 +4,9 @@ const KNOWN_BOT_IPS = [
     '127.0.0.1', // localhost
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function isSuspectedBot(
     ip: string,
-    pageCount: number
+    pageCount: number // eslint-disable-line @typescript-eslint/no-unused-vars
 ): boolean {
     // Known bot IPs (localhost etc)
     if (KNOWN_BOT_IPS.includes(ip)) return true;
