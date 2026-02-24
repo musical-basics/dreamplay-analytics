@@ -6,7 +6,7 @@ const KNOWN_BOT_IPS = [
 
 export function isSuspectedBot(
     ip: string,
-    pageCount: number
+    _pageCount: number
 ): boolean {
     // Known bot IPs (localhost etc)
     if (KNOWN_BOT_IPS.includes(ip)) return true;
