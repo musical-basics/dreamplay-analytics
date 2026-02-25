@@ -98,7 +98,7 @@ export default function Dashboard() {
   const [range, setRange] = useState('7d');
   const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
   const [filterBots, setFilterBots] = useState(true); // Default to Bots Hidden
-  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'insights'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'emailVisitors' | 'insights'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
   const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
   const [visitorHistory, setVisitorHistory] = useState<VisitorHistory | null>(null);
@@ -109,6 +109,8 @@ export default function Dashboard() {
   const [attachingEmail, setAttachingEmail] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
+  const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string }[] | null>(null);
+  const [emailVisitorsLoading, setEmailVisitorsLoading] = useState(false);
 
   // Fetch visitor history when an IP is selected
   useEffect(() => {
@@ -160,6 +162,31 @@ export default function Dashboard() {
     fetchInsights();
     return () => { cancelled = true; };
   }, [activeTab, range, filterAdmin, filterBots]);
+
+  // Fetch email visitors data when emailVisitors tab is active
+  useEffect(() => {
+    if (activeTab !== 'emailVisitors') return;
+    let cancelled = false;
+    async function fetchEmailVisitors() {
+      setEmailVisitorsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/email-visitors?exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${Date.now()}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok && !cancelled) {
+          const json = await res.json();
+          setEmailVisitorsData(json.emailVisitorStats);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setEmailVisitorsLoading(false);
+      }
+    }
+    fetchEmailVisitors();
+    return () => { cancelled = true; };
+  }, [activeTab, filterAdmin, filterBots]);
 
   useEffect(() => {
     async function fetchData() {
@@ -283,6 +310,7 @@ export default function Dashboard() {
         <div className="flex border-b border-neutral-800 overflow-x-auto">
           <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutDashboard size={16} />} label="Traffic Overview" />
           <TabButton active={activeTab === 'visitors'} onClick={() => setActiveTab('visitors')} icon={<Network size={16} />} label="Visitors" />
+          <TabButton active={activeTab === 'emailVisitors'} onClick={() => setActiveTab('emailVisitors')} icon={<Mail size={16} />} label="Email Visitors" />
           <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<TrendingUp size={16} />} label="Insights" />
           <TabButton active={activeTab === 'ab'} onClick={() => setActiveTab('ab')} icon={<FlaskConical size={16} />} label="A/B Tests" />
           <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<TableProperties size={16} />} label="Raw Logs" />
@@ -592,6 +620,179 @@ export default function Dashboard() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: EMAIL VISITORS --- */}
+        {activeTab === 'emailVisitors' && (
+          <div className="animate-in fade-in">
+            {/* If a visitor is selected, show their detail view (reuse same detail view) */}
+            {selectedVisitorIp ? (
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                {/* Header with back button */}
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex items-center gap-4">
+                  <button
+                    onClick={() => setSelectedVisitorIp(null)}
+                    className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-neutral-700"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Email Visitors
+                  </button>
+                  <div className="h-5 w-px bg-neutral-700" />
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2 font-mono">
+                    <Network className="w-4 h-4 text-blue-400" />
+                    {selectedVisitorIp}
+                    {emailVisitorsData?.find(v => v.ip === selectedVisitorIp)?.email && (
+                      <span className="text-sm font-sans font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2">
+                        {emailVisitorsData?.find(v => v.ip === selectedVisitorIp)?.email}
+                      </span>
+                    )}
+                  </h2>
+                </div>
+
+                {historyLoading ? (
+                  <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading visitor history…
+                  </div>
+                ) : visitorHistory ? (
+                  <>
+                    {/* Visitor metadata cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Total Pageviews</div>
+                        <div className="text-xl font-bold text-white">{visitorHistory.total_pageviews}</div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Pages Visited</div>
+                        <div className="text-xl font-bold text-white">
+                          {new Set(visitorHistory.visits.map(v => v.path)).size}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">First Seen</div>
+                        <div className="text-sm font-medium text-white">
+                          {visitorHistory.first_seen ? new Date(visitorHistory.first_seen).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Last Seen</div>
+                        <div className="text-sm font-medium text-white">
+                          {visitorHistory.last_seen ? new Date(visitorHistory.last_seen).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Visit history table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-neutral-400">
+                        <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                          <tr>
+                            <th className="px-6 py-3 w-12">#</th>
+                            <th className="px-6 py-3">Page</th>
+                            <th className="px-6 py-3">Visited At</th>
+                            <th className="px-6 py-3">Time on Page</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-700/50">
+                          {visitorHistory.visits.map((visit, i) => (
+                            <tr key={i} className="hover:bg-white/5 transition-colors">
+                              <td className="px-6 py-3 text-neutral-500 font-mono text-xs">{i + 1}</td>
+                              <td className="px-6 py-3 text-neutral-200 max-w-md">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate" title={visit.path}>{visit.path}</span>
+                                  {visit.path.startsWith('http') && (
+                                    <a href={visit.path} target="_blank" rel="noopener noreferrer" className="text-neutral-500 hover:text-blue-400 flex-shrink-0">
+                                      <ExternalLink size={12} />
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-neutral-300">
+                                {new Date(visit.visited_at).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap">
+                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${visit.duration_seconds !== null
+                                  ? 'bg-blue-500/10 text-blue-400'
+                                  : 'bg-neutral-700/50 text-neutral-500'
+                                  }`}>
+                                  {formatDuration(visit.duration_seconds)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                          {visitorHistory.visits.length === 0 && (
+                            <tr><td colSpan={4} className="px-6 py-8 text-center text-neutral-500">No page visits recorded.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <div className="px-6 py-12 text-center text-neutral-500">Failed to load visitor history.</div>
+                )}
+              </div>
+            ) : (
+              /* Email Visitors list table */
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-green-400" />
+                    Email Visitors (Last 1000 Events)
+                  </h2>
+                </div>
+                {emailVisitorsLoading ? (
+                  <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading email visitors…
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-neutral-400">
+                      <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                        <tr>
+                          <th className="px-6 py-3">Email</th>
+                          <th className="px-6 py-3">IP Address</th>
+                          <th className="px-6 py-3">Country</th>
+                          <th className="px-6 py-3">Page Hits</th>
+                          <th className="px-6 py-3">Last Visited Page</th>
+                          <th className="px-6 py-3">Last Seen</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-700/50">
+                        {emailVisitorsData?.map((visitor, i) => (
+                          <tr
+                            key={i}
+                            onClick={() => setSelectedVisitorIp(visitor.ip)}
+                            className="hover:bg-white/5 transition-colors cursor-pointer group"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{visitor.email}</span>
+                            </td>
+                            <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
+                            <td className="px-6 py-4 flex items-center gap-2">
+                              <Globe size={12} /> {visitor.country}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
+                            </td>
+                            <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
+                              {visitor.lastPath}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {new Date(visitor.lastSeen).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                        {(!emailVisitorsData || emailVisitorsData.length === 0) && (
+                          <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No email visitors found.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
