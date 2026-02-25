@@ -1,0 +1,2450 @@
+This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+- Pay special attention to the Repository Description. These contain important context and guidelines specific to this project.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching these patterns are excluded: **/node_modules/**, **/.next/**, **/.git/**, **/dist/**, **/coverage/**, **/pnpm-lock.yaml, **/package-lock.json, **/yarn.lock, **/*.ico, **/*.png, **/*.jpg, **/*.jpeg, **/*.svg, **/*.gif, **/.DS_Store, **/.env, **/.env.*, **/README.md, **/repomix.config.json
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<user_provided_header>
+DreamPlay Analytics Codebase
+</user_provided_header>
+
+<directory_structure>
+.agent/
+  workflows/
+    deploy.md
+public/
+  tracker.js
+src/
+  app/
+    api/
+      auth/
+        route.ts
+      decide/
+        route.ts
+      insights/
+        route.ts
+      ip-email/
+        route.ts
+      stats/
+        route.ts
+      track/
+        route.ts
+      visitor-history/
+        route.ts
+    fonts/
+      GeistMonoVF.woff
+      GeistVF.woff
+    login/
+      page.tsx
+    globals.css
+    layout.tsx
+    page.tsx
+  lib/
+    adminIPs.ts
+    botDetection.ts
+    supabase.ts
+  middleware.ts
+.eslintrc.json
+.gitignore
+deploy-and-watch.sh
+next.config.mjs
+package.json
+postcss.config.mjs
+tailwind.config.ts
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path=".agent/workflows/deploy.md">
+---
+description: Deploy to Vercel and watch the build until it succeeds or fails
+---
+
+// turbo-all
+
+1. Stage and commit all changes:
+```bash
+git add -A && git commit -m "<descriptive commit message>"
+```
+
+2. Run the deploy-and-watch script:
+```bash
+./deploy-and-watch.sh
+```
+
+3. If the build fails, check the output for errors and fix them. Then repeat from step 1.
+</file>
+
+<file path="src/app/api/auth/route.ts">
+import { NextResponse } from 'next/server';
+import crypto from 'crypto';
+
+export const dynamic = 'force-dynamic';
+
+const COOKIE_NAME = 'dp_auth';
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days
+
+function generateToken(): string {
+    const secret = process.env.DASHBOARD_PASS || '';
+    return crypto.createHmac('sha256', secret).update('dp_analytics_auth').digest('hex');
+}
+
+// POST — login
+export async function POST(request: Request) {
+    try {
+        const { password } = await request.json();
+        const correct = process.env.DASHBOARD_PASS;
+
+        if (!correct || password !== correct) {
+            return NextResponse.json({ error: 'Invalid password' }, { status: 401 });
+        }
+
+        const token = generateToken();
+        const response = NextResponse.json({ success: true });
+
+        response.cookies.set(COOKIE_NAME, token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            maxAge: COOKIE_MAX_AGE,
+        });
+
+        return response;
+    } catch {
+        return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+    }
+}
+
+// DELETE — logout
+export async function DELETE() {
+    const response = NextResponse.json({ success: true });
+    response.cookies.set(COOKIE_NAME, '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 0,
+    });
+    return response;
+}
+</file>
+
+<file path="src/app/login/page.tsx">
+'use client';
+
+import { useState } from 'react';
+import { Lock, Eye, EyeOff } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+export default function LoginPage() {
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const router = useRouter();
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!password.trim() || loading) return;
+
+        setLoading(true);
+        setError(false);
+
+        try {
+            const res = await fetch('/api/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password }),
+            });
+
+            if (res.ok) {
+                router.push('/');
+                router.refresh();
+            } else {
+                setError(true);
+                setPassword('');
+            }
+        } catch {
+            setError(true);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-neutral-900 flex items-center justify-center p-6 font-sans">
+            <div className="w-full max-w-sm">
+                <form onSubmit={handleSubmit} className="bg-neutral-800 border border-neutral-700 rounded-2xl p-8 shadow-2xl space-y-6">
+                    {/* Icon */}
+                    <div className="flex justify-center">
+                        <div className="w-14 h-14 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
+                            <Lock className="w-6 h-6 text-blue-400" />
+                        </div>
+                    </div>
+
+                    {/* Title */}
+                    <div className="text-center">
+                        <h1 className="text-xl font-bold text-white">DreamPlay Analytics</h1>
+                        <p className="text-sm text-neutral-500 mt-1">Enter password to continue</p>
+                    </div>
+
+                    {/* Password Input */}
+                    <div className="relative">
+                        <input
+                            type={showPassword ? 'text' : 'password'}
+                            value={password}
+                            onChange={(e) => { setPassword(e.target.value); setError(false); }}
+                            placeholder="Password"
+                            autoFocus
+                            className={`w-full bg-neutral-900 border rounded-lg px-4 py-3 pr-10 text-white placeholder-neutral-600 text-sm focus:outline-none focus:ring-2 transition-all ${error
+                                ? 'border-red-500/50 focus:ring-red-500/30'
+                                : 'border-neutral-700 focus:ring-blue-500/30 focus:border-blue-500/50'
+                                }`}
+                        />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 transition-colors"
+                        >
+                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                    </div>
+
+                    {/* Error */}
+                    {error && (
+                        <p className="text-red-400 text-xs text-center animate-in fade-in">
+                            Incorrect password. Try again.
+                        </p>
+                    )}
+
+                    {/* Submit */}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-lg transition-colors text-sm"
+                    >
+                        {loading ? 'Verifying...' : 'Unlock Dashboard'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+}
+</file>
+
+<file path="src/app/globals.css">
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+</file>
+
+<file path="src/lib/adminIPs.ts">
+// Add your IP here whenever your ISP refreshes it
+export const ADMIN_IPS = [
+    '71.38.79.10',
+    '71.38.82.163',
+];
+
+export function isAdminIP(ip: string): boolean {
+    return ADMIN_IPS.includes(ip);
+}
+</file>
+
+<file path="src/middleware.ts">
+import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+
+const COOKIE_NAME = 'dp_auth';
+
+// Routes that do NOT require authentication
+const PUBLIC_PATHS = [
+    '/api/track',
+    '/api/decide',
+    '/api/auth',
+    '/login',
+];
+
+// Static / internal paths to skip entirely
+const SKIP_PREFIXES = [
+    '/_next',
+    '/favicon.ico',
+    '/tracker.js',
+];
+
+function isPublic(pathname: string): boolean {
+    return PUBLIC_PATHS.some(p => pathname.startsWith(p));
+}
+
+function shouldSkip(pathname: string): boolean {
+    return SKIP_PREFIXES.some(p => pathname.startsWith(p));
+}
+
+// Edge-compatible HMAC-SHA256 using Web Crypto API
+async function verifyToken(token: string): Promise<boolean> {
+    const secret = process.env.DASHBOARD_PASS || '';
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
+    const signature = await crypto.subtle.sign('HMAC', key, encoder.encode('dp_analytics_auth'));
+    const expected = Array.from(new Uint8Array(signature))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+    return token === expected;
+}
+
+export async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
+
+    // Skip static assets and public routes
+    if (shouldSkip(pathname) || isPublic(pathname)) {
+        return NextResponse.next();
+    }
+
+    // Check auth cookie
+    const token = request.cookies.get(COOKIE_NAME)?.value;
+
+    if (!token || !(await verifyToken(token))) {
+        // API routes → 401 JSON
+        if (pathname.startsWith('/api/')) {
+            return NextResponse.json(
+                { error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
+        // Page routes → redirect to /login
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = '/login';
+        return NextResponse.redirect(loginUrl);
+    }
+
+    return NextResponse.next();
+}
+
+export const config = {
+    matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+};
+</file>
+
+<file path=".eslintrc.json">
+{
+  "extends": ["next/core-web-vitals", "next/typescript"]
+}
+</file>
+
+<file path="next.config.mjs">
+/** @type {import('next').NextConfig} */
+const nextConfig = {};
+
+export default nextConfig;
+</file>
+
+<file path="postcss.config.mjs">
+/** @type {import('postcss-load-config').Config} */
+const config = {
+  plugins: {
+    tailwindcss: {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="tailwind.config.ts">
+import type { Config } from "tailwindcss";
+
+const config: Config = {
+  content: [
+    "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        background: "var(--background)",
+        foreground: "var(--foreground)",
+      },
+    },
+  },
+  plugins: [],
+};
+export default config;
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="src/app/api/decide/route.ts">
+import { NextResponse } from 'next/server';
+
+export const runtime = 'edge';
+
+export async function POST() {
+    // Simple A/B Logic: 50/50 split
+    // In a real app, you'd hash the userID or sessionID to ensure consistency.
+
+    const bucket = Math.random() < 0.5 ? 'control' : 'variant_b';
+
+    return NextResponse.json({
+        variant: bucket,
+        shouldShowNewFeature: bucket === 'variant_b'
+    }, {
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+    });
+}
+
+export async function OPTIONS() {
+    return NextResponse.json({}, {
+        headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+    });
+}
+</file>
+
+<file path="src/app/api/ip-email/route.ts">
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const noCacheHeaders = {
+    'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+    'CDN-Cache-Control': 'no-store',
+    'Vercel-CDN-Cache-Control': 'no-store',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+};
+
+// GET — return all manual IP→email mappings as { [ip]: email }
+export async function GET() {
+    try {
+        const { data, error } = await supabase
+            .from('ip_email_map')
+            .select('ip_address, email');
+
+        if (error) throw error;
+
+        const map: Record<string, string> = {};
+        (data || []).forEach((row: { ip_address: string; email: string }) => {
+            map[row.ip_address] = row.email;
+        });
+
+        return NextResponse.json(map, { headers: noCacheHeaders });
+    } catch (error) {
+        console.error('[IP-Email API] GET error:', error);
+        return NextResponse.json({ error: 'Failed to fetch mappings' }, { status: 500, headers: noCacheHeaders });
+    }
+}
+
+// POST — upsert a manual IP→email mapping
+export async function POST(request: Request) {
+    try {
+        const { ip, email } = await request.json();
+
+        if (!ip || !email) {
+            return NextResponse.json({ error: 'Missing ip or email' }, { status: 400, headers: noCacheHeaders });
+        }
+
+        const { error } = await supabase
+            .from('ip_email_map')
+            .upsert(
+                { ip_address: ip, email },
+                { onConflict: 'ip_address' }
+            );
+
+        if (error) throw error;
+
+        return NextResponse.json({ success: true }, { headers: noCacheHeaders });
+    } catch (error) {
+        console.error('[IP-Email API] POST error:', error);
+        return NextResponse.json({ error: 'Failed to save mapping' }, { status: 500, headers: noCacheHeaders });
+    }
+}
+</file>
+
+<file path="src/lib/supabase.ts">
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+if (!supabaseUrl || !supabaseKey) {
+    console.warn('Supabase environment variables are missing. This is expected during build time if not set.');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+</file>
+
+<file path="deploy-and-watch.sh">
+#!/bin/bash
+# Deploy & Watch — pushes to git and monitors the Vercel build until it succeeds or fails.
+
+set -e
+
+# 1. Push the code
+echo "🚀 Pushing to origin..."
+git push
+
+# 2. Wait for Vercel to pick up the deployment
+echo "⏳ Waiting for Vercel to register the build..."
+sleep 10
+
+# 3. Get the latest deployment URL
+DEPLOYMENT_URL=$(npx -y vercel ls --target production --limit 1 2>/dev/null | awk 'NR==2 {print $2}')
+
+if [ -z "$DEPLOYMENT_URL" ]; then
+  echo "⚠️  Could not detect deployment URL. Trying with 'vercel ls' (no target filter)..."
+  DEPLOYMENT_URL=$(npx -y vercel ls --limit 1 2>/dev/null | awk 'NR==2 {print $2}')
+fi
+
+if [ -z "$DEPLOYMENT_URL" ]; then
+  echo "❌ Failed to get deployment URL. Make sure Vercel CLI is installed and linked."
+  exit 1
+fi
+
+# 4. Inspect and wait for build completion
+echo "📡 Tracking deployment: $DEPLOYMENT_URL"
+npx -y vercel inspect "$DEPLOYMENT_URL" --wait
+
+# 5. Report result
+if [ $? -eq 0 ]; then
+  echo "✅ Build Succeeded!"
+else
+  echo "❌ Build Failed! Check Vercel logs."
+  exit 1
+fi
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+.DS_Store
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# repomix
+repomix-output.xml
+</file>
+
+<file path="package.json">
+{
+  "name": "dreamplay-analytics",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.95.2",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.563.0",
+    "next": "14.2.35",
+    "react": "^18",
+    "react-dom": "^18",
+    "recharts": "^3.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.35",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="src/app/api/insights/route.ts">
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import { isSuspectedBot } from '@/lib/botDetection';
+import { isAdminIP } from '@/lib/adminIPs';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// Checkout pages — a visitor who reached any of these is a "converter"
+const CHECKOUT_PATTERNS = [
+    '/checkout-pages/buy-product',
+    '/checkout-pages/customize',
+    'crowdfund.dreamplaypianos.com',
+];
+
+function isCheckoutPage(path: string): boolean {
+    return CHECKOUT_PATTERNS.some(p => path.includes(p));
+}
+
+function cleanPagePath(rawPath: string): string {
+    try {
+        const url = new URL(rawPath);
+        // For external domains (crowdfund), show domain + path
+        if (!url.hostname.includes('dreamplaypianos.com') || url.hostname === 'crowdfund.dreamplaypianos.com') {
+            return url.hostname + url.pathname;
+        }
+        return url.pathname || '/';
+    } catch {
+        return rawPath;
+    }
+}
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get('range') || '7d';
+    const excludeAdmin = searchParams.get('exclude_admin') === 'true';
+    const excludeBots = searchParams.get('exclude_bots') === 'true';
+
+    const now = new Date();
+    let startTime = new Date();
+
+    if (range === '24h') startTime.setHours(now.getHours() - 24);
+    if (range === '7d') startTime.setDate(now.getDate() - 7);
+    if (range === '30d') startTime.setDate(now.getDate() - 30);
+    if (range === 'all') startTime = new Date(0);
+
+    try {
+        const { data: logs, error } = await supabase
+            .from('analytics_logs')
+            .select('created_at, event_name, path, ip_address, session_id')
+            .eq('event_name', 'pageview')
+            .gt('created_at', startTime.toISOString())
+            .order('created_at', { ascending: true })
+            .limit(20000);
+
+        if (error) throw error;
+
+        let safeLogs = logs || [];
+
+        if (excludeAdmin) {
+            safeLogs = safeLogs.filter(log => !isAdminIP(log.ip_address || ''));
+        }
+
+        // Filter suspected bots
+        if (excludeBots) {
+            const ipPageCounts = new Map<string, number>();
+            safeLogs.forEach(log => {
+                const ip = log.ip_address || 'unknown';
+                ipPageCounts.set(ip, (ipPageCounts.get(ip) || 0) + 1);
+            });
+            safeLogs = safeLogs.filter(log => {
+                const ip = log.ip_address || 'unknown';
+                return !isSuspectedBot(ip, ipPageCounts.get(ip) || 0);
+            });
+        }
+
+        // ============================
+        // Group pageviews by visitor (IP)
+        // ============================
+        const visitorMap = new Map<string, typeof safeLogs>();
+        safeLogs.forEach(log => {
+            const key = log.ip_address || log.session_id || 'unknown';
+            if (!visitorMap.has(key)) visitorMap.set(key, []);
+            visitorMap.get(key)!.push(log);
+        });
+
+        // ============================
+        // 1. PATH TO PURCHASE — pages converters visited before checkout
+        // ============================
+        const converterIPs = new Set<string>();
+        const pageFrequencyAmongConverters = new Map<string, number>();
+        const converterJourneys: string[][] = [];
+        let converterTotalPages = 0;
+        let converterTotalDuration = 0;
+        let converterSessionCount = 0;
+
+        visitorMap.forEach((visits, ip) => {
+            const reachedCheckout = visits.some(v => isCheckoutPage(v.path));
+            if (!reachedCheckout) return;
+
+            converterIPs.add(ip);
+            converterSessionCount++;
+            converterTotalPages += visits.length;
+
+            // Calculate session duration
+            if (visits.length >= 2) {
+                const first = new Date(visits[0].created_at).getTime();
+                const last = new Date(visits[visits.length - 1].created_at).getTime();
+                const durationSec = (last - first) / 1000;
+                if (durationSec < 7200) { // Cap at 2 hours
+                    converterTotalDuration += durationSec;
+                }
+            }
+
+            // Track which pages they visited (deduplicated per visitor)
+            const uniquePages = new Set<string>();
+            const journey: string[] = [];
+
+            visits.forEach(v => {
+                const cleanPath = cleanPagePath(v.path);
+                journey.push(cleanPath);
+                uniquePages.add(cleanPath);
+            });
+
+            uniquePages.forEach(page => {
+                pageFrequencyAmongConverters.set(page, (pageFrequencyAmongConverters.get(page) || 0) + 1);
+            });
+
+            converterJourneys.push(journey);
+        });
+
+        const totalConverters = converterIPs.size;
+
+        // Sort pages by frequency among converters, exclude checkout pages themselves
+        const pagesBeforePurchase = Array.from(pageFrequencyAmongConverters.entries())
+            .filter(([page]) => !CHECKOUT_PATTERNS.some(p => page.includes(p.replace('https://', ''))))
+            .map(([page, count]) => ({
+                page,
+                converterCount: count,
+                percentage: totalConverters > 0 ? Math.round((count / totalConverters) * 100) : 0,
+            }))
+            .sort((a, b) => b.converterCount - a.converterCount)
+            .slice(0, 15);
+
+        // ============================
+        // 2. PAGE ENGAGEMENT STATS — per-page metrics for ALL visitors
+        // ============================
+        const pageStats = new Map<string, {
+            views: number;
+            visitors: Set<string>;
+            totalDuration: number;
+            durationCount: number;
+            exitCount: number;
+        }>();
+
+        let totalSessions = 0;
+
+        visitorMap.forEach((visits, ip) => {
+            totalSessions++;
+
+            visits.forEach((v, i) => {
+                const cleanPath = cleanPagePath(v.path);
+
+                if (!pageStats.has(cleanPath)) {
+                    pageStats.set(cleanPath, {
+                        views: 0,
+                        visitors: new Set(),
+                        totalDuration: 0,
+                        durationCount: 0,
+                        exitCount: 0,
+                    });
+                }
+
+                const stats = pageStats.get(cleanPath)!;
+                stats.views++;
+                stats.visitors.add(ip);
+
+                // Time on page = diff to next pageview
+                if (i < visits.length - 1) {
+                    const current = new Date(v.created_at).getTime();
+                    const next = new Date(visits[i + 1].created_at).getTime();
+                    const dur = (next - current) / 1000;
+                    if (dur > 0 && dur <= 1800) { // Cap at 30 min
+                        stats.totalDuration += dur;
+                        stats.durationCount++;
+                    }
+                }
+
+                // Exit page = last page in a visitor's sequence
+                if (i === visits.length - 1) {
+                    stats.exitCount++;
+                }
+            });
+        });
+
+        const pageEngagement = Array.from(pageStats.entries())
+            .map(([page, stats]) => ({
+                page,
+                views: stats.views,
+                uniqueVisitors: stats.visitors.size,
+                avgTimeSeconds: stats.durationCount > 0 ? Math.round(stats.totalDuration / stats.durationCount) : null,
+                exitRate: stats.views > 0 ? Math.round((stats.exitCount / totalSessions) * 100) : 0,
+            }))
+            .sort((a, b) => b.views - a.views)
+            .slice(0, 30);
+
+        // ============================
+        // 3. CONVERTER vs ALL VISITOR COMPARISON
+        // ============================
+        let allTotalPages = 0;
+        let allTotalDuration = 0;
+        let allSessionCount = 0;
+
+        visitorMap.forEach((visits) => {
+            allSessionCount++;
+            allTotalPages += visits.length;
+            if (visits.length >= 2) {
+                const first = new Date(visits[0].created_at).getTime();
+                const last = new Date(visits[visits.length - 1].created_at).getTime();
+                const durationSec = (last - first) / 1000;
+                if (durationSec < 7200) {
+                    allTotalDuration += durationSec;
+                }
+            }
+        });
+
+        // Find common page flows (top 2-step transitions)
+        const transitionCounts = new Map<string, number>();
+        converterJourneys.forEach(journey => {
+            for (let i = 0; i < journey.length - 1; i++) {
+                const transition = `${journey[i]} → ${journey[i + 1]}`;
+                transitionCounts.set(transition, (transitionCounts.get(transition) || 0) + 1);
+            }
+        });
+
+        const topFlows = Array.from(transitionCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([flow, count]) => ({ flow, count }));
+
+        return NextResponse.json({
+            totalConverters,
+            totalVisitors: visitorMap.size,
+            conversionRate: visitorMap.size > 0 ? ((totalConverters / visitorMap.size) * 100).toFixed(1) : '0',
+
+            pagesBeforePurchase,
+            pageEngagement,
+            topFlows,
+
+            converterAvg: {
+                pagesPerSession: converterSessionCount > 0 ? (converterTotalPages / converterSessionCount).toFixed(1) : '0',
+                sessionDuration: converterSessionCount > 0 ? Math.round(converterTotalDuration / converterSessionCount) : 0,
+            },
+            allVisitorAvg: {
+                pagesPerSession: allSessionCount > 0 ? (allTotalPages / allSessionCount).toFixed(1) : '0',
+                sessionDuration: allSessionCount > 0 ? Math.round(allTotalDuration / allSessionCount) : 0,
+            },
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+                'CDN-Cache-Control': 'no-store',
+                'Vercel-CDN-Cache-Control': 'no-store',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            },
+        });
+    } catch (error) {
+        console.error('[Insights API] Error:', error);
+        return NextResponse.json({ error: 'Failed to compute insights' }, { status: 500 });
+    }
+}
+</file>
+
+<file path="src/app/api/visitor-history/route.ts">
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import { isAdminIP } from '@/lib/adminIPs';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const ip = searchParams.get('ip');
+    const range = searchParams.get('range') || '7d';
+    const excludeAdmin = searchParams.get('exclude_admin') === 'true';
+
+    if (!ip) {
+        return NextResponse.json({ error: 'Missing ip parameter' }, { status: 400 });
+    }
+
+    // If admin filtering is on and the requested IP is an admin IP, return empty
+    if (excludeAdmin && isAdminIP(ip)) {
+        return NextResponse.json({ visits: [], total_pageviews: 0, first_seen: null, last_seen: null });
+    }
+
+    const now = new Date();
+    let startTime = new Date();
+
+    if (range === '24h') startTime.setHours(now.getHours() - 24);
+    if (range === '7d') startTime.setDate(now.getDate() - 7);
+    if (range === '30d') startTime.setDate(now.getDate() - 30);
+    if (range === 'all') startTime = new Date(0);
+
+    try {
+        const { data: logs, error } = await supabase
+            .from('analytics_logs')
+            .select('created_at, event_name, path, metadata')
+            .eq('ip_address', ip)
+            .in('event_name', ['pageview', 'page_leave'])
+            .gt('created_at', startTime.toISOString())
+            .order('created_at', { ascending: true })
+            .limit(5000);
+
+        if (error) throw error;
+
+        const safeLogs = logs || [];
+
+        // Separate the two event types
+        const pageviews = safeLogs.filter(l => l.event_name === 'pageview');
+        const leaveEvents = safeLogs.filter(l => l.event_name === 'page_leave');
+
+        // Calculate time on page
+        const visits = pageviews.map((pv, i) => {
+            let durationSeconds: number | null = null;
+            const pvTime = new Date(pv.created_at).getTime();
+            const nextPvTime = i < pageviews.length - 1
+                ? new Date(pageviews[i + 1].created_at).getTime()
+                : Infinity;
+
+            // 1. Look for our explicit "page_leave" event for this specific page visit
+            const leaveEvent = leaveEvents.find(l =>
+                l.path === pv.path &&
+                new Date(l.created_at).getTime() >= pvTime &&
+                new Date(l.created_at).getTime() < nextPvTime
+            );
+
+            if (leaveEvent && leaveEvent.metadata?.duration_seconds) {
+                // Use the exact time captured when they closed the tab!
+                durationSeconds = Number(leaveEvent.metadata.duration_seconds);
+            } else if (i < pageviews.length - 1) {
+                // Fallback: Math between two pageviews
+                durationSeconds = Math.round((nextPvTime - pvTime) / 1000);
+            }
+
+            // Cap extremely long idle times at 2 hours
+            if (durationSeconds !== null && durationSeconds > 7200) durationSeconds = null;
+
+            return {
+                path: pv.path,
+                visited_at: pv.created_at,
+                duration_seconds: durationSeconds,
+            };
+        });
+
+        return NextResponse.json({
+            visits,
+            total_pageviews: pageviews.length,
+            first_seen: pageviews.length > 0 ? pageviews[0].created_at : null,
+            last_seen: pageviews.length > 0 ? pageviews[pageviews.length - 1].created_at : null,
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+                'CDN-Cache-Control': 'no-store',
+                'Vercel-CDN-Cache-Control': 'no-store',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            },
+        });
+    } catch (error) {
+        console.error('[Visitor History API] Error:', error);
+        return NextResponse.json({ error: 'Failed to fetch visitor history' }, { status: 500 });
+    }
+}
+</file>
+
+<file path="src/app/layout.tsx">
+import type { Metadata } from "next";
+import localFont from "next/font/local";
+import "./globals.css";
+
+const geistSans = localFont({
+  src: "./fonts/GeistVF.woff",
+  variable: "--font-geist-sans",
+  weight: "100 900",
+});
+const geistMono = localFont({
+  src: "./fonts/GeistMonoVF.woff",
+  variable: "--font-geist-mono",
+  weight: "100 900",
+});
+
+export const metadata: Metadata = {
+  title: "DreamPlay Analytics",
+  description: "Internal traffic dashboard",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {children}
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="public/tracker.js">
+(function () {
+    function getCookie(name) {
+        try {
+            var v = document.cookie.match('(^|;) ?' + name + '=([^;]*)(;|$)');
+            return v ? v[2] : null;
+        } catch (e) { return null; }
+    }
+
+    function setCookie(name, value, days) {
+        var d = new Date();
+        d.setTime(d.getTime() + 24 * 60 * 60 * 1000 * days);
+        document.cookie = name + "=" + value + ";path=/;domain=.dreamplaypianos.com;max-age=" + (days * 24 * 60 * 60) + ";SameSite=Lax;Secure";
+    }
+
+    function generateUUID() {
+        if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+        }
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    var sessionId = getCookie('dp_session_id');
+    if (!sessionId) {
+        sessionId = generateUUID();
+        setCookie('dp_session_id', sessionId, 365);
+    }
+
+    function getQueryParam(name) {
+        try {
+            var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+            return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+        } catch (e) { return null; }
+    }
+
+    var emailParam = getQueryParam('em');
+    if (emailParam) {
+        setCookie('dp_user_email', emailParam, 365);
+    }
+    var userEmail = getCookie('dp_user_email');
+
+    // Use the production data subdomain 
+    // IMPORTANT: For local testing, this might fail to track if not deployed.
+    // But reqs say "Use the full production URL placeholder".
+    const ENDPOINT = 'https://data.dreamplaypianos.com/api/track';
+
+    // NOTE: If testing locally (localhost dashboard), it won't receive events unless the script points to localhost 
+    // OR if you deploy this app to data.dreamplaypianos.com. 
+    // User said "I need to... visit ... and watch the counter go up".
+    // This implies the dashboard is observing the REAL DB. 
+    // So if I run the dashboard LOCALLY, and visit the REAL site, I see numbers. 
+    // This script is for the deployed sites.
+
+    function sendEvent(eventName, metadata = {}) {
+        if (userEmail && !metadata.email) {
+            metadata.email = userEmail;
+        }
+
+        const payload = {
+            eventName: eventName,
+            path: window.location.href,
+            sessionId: sessionId,
+            metadata: metadata,
+            timestamp: new Date().toISOString()
+        };
+
+        console.log('[Dreamplay Analytics] Sending event:', eventName, payload);
+
+        fetch(ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            keepalive: true
+        }).then(res => {
+            if (!res.ok) {
+                console.error('[Dreamplay Analytics] Server error:', res.status, res.statusText);
+            } else {
+                console.log('[Dreamplay Analytics] Event sent successfully');
+            }
+        }).catch(function (err) {
+            console.error('[Dreamplay Analytics] Network error:', err);
+        });
+    }
+
+    window.dreamplay = window.dreamplay || {};
+    window.dreamplay.track = sendEvent;
+
+    if (document.readyState === 'complete') {
+        sendEvent('pageview');
+    } else {
+        window.addEventListener('load', function () {
+            sendEvent('pageview');
+        });
+    }
+
+    // --- TIME ON PAGE TRACKING (Exit Beacon) ---
+    var pageLoadTime = Date.now();
+    var hasSentLeave = false;
+
+    function sendLeaveEvent() {
+        if (hasSentLeave) return;
+        var duration = Math.round((Date.now() - pageLoadTime) / 1000);
+
+        // Ignore instant 0-second bot bounces
+        if (duration > 1) {
+            sendEvent('page_leave', { duration_seconds: duration });
+            hasSentLeave = true;
+        }
+    }
+
+    // Modern exit tracking (handles tab switch, tab close, phone lock)
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'hidden') {
+            sendLeaveEvent();
+        }
+    });
+
+    // Fallback for older browsers
+    window.addEventListener('pagehide', sendLeaveEvent);
+})();
+</file>
+
+<file path="src/app/api/track/route.ts">
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// export const runtime = 'edge'; // Removed to use Node.js runtime for better stability
+
+// Initialize Supabase client locally to ensure environment variables are read correctly in this context
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const allowedOrigins = [
+    'https://dreamplaypianos.com',
+    'https://www.dreamplaypianos.com',
+    'https://blog.dreamplaypianos.com',
+    'https://crowdfund.dreamplaypianos.com'
+];
+
+function corsHeaders(origin: string | null): Record<string, string> {
+    // Allow Vercel previews and localhost for testing
+    const isAllowed = origin && (
+        allowedOrigins.includes(origin) ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('localhost')
+    );
+
+    if (isAllowed) {
+        return {
+            'Access-Control-Allow-Origin': origin!,
+            'Access-Control-Allow-Methods': 'POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        };
+    }
+    return {};
+}
+
+export async function OPTIONS(request: Request) {
+    const origin = request.headers.get('origin');
+    return new NextResponse(null, {
+        status: 200,
+        headers: corsHeaders(origin),
+    });
+}
+
+export async function POST(request: Request) {
+    console.log('[Track API] Received request');
+    const origin = request.headers.get('origin');
+    const headers = corsHeaders(origin);
+
+    const userAgent = (request.headers.get('user-agent') || '').toLowerCase();
+
+    // Simplified bot detection - removed overly aggressive terms like 'monitor', 'status'
+    const botPatterns = [
+        'bot', 'spider', 'crawl', 'headless', 'lighthouse', 'pingdom'
+    ];
+
+    if (botPatterns.some(pattern => userAgent.includes(pattern))) {
+        console.log('[Track API] Ignored bot:', userAgent);
+        return NextResponse.json({ ignored: true }, { status: 200, headers });
+    }
+
+    try {
+        const body = await request.json();
+        const { eventName, path, sessionId, metadata } = body;
+        console.log('[Track API] Processing event:', eventName, path);
+
+        // Truncate path to avoid database errors if URL is too long
+        const safePath = path ? path.substring(0, 2000) : path;
+
+        const ip_address = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+        const user_agent = request.headers.get('user-agent');
+        const country = request.headers.get('x-vercel-ip-country');
+
+        const { error } = await supabase
+            .from('analytics_logs')
+            .insert([
+                {
+                    event_name: eventName,
+                    path: safePath,
+                    session_id: sessionId,
+                    metadata,
+                    ip_address,
+                    user_agent,
+                    country,
+                },
+            ]);
+
+        if (error) {
+            console.error('[Track API] Supabase error:', error);
+            return NextResponse.json({ error: error.message }, { status: 500, headers });
+        }
+
+        console.log('[Track API] Event recorded successfully');
+        return NextResponse.json({ success: true }, { status: 200, headers });
+    } catch (error) {
+        console.error('[Track API] Handler error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500, headers });
+    }
+}
+</file>
+
+<file path="src/lib/botDetection.ts">
+// IPs that are always bots
+const KNOWN_BOT_IPS = [
+    '::1',       // localhost
+    '127.0.0.1', // localhost
+];
+
+export function isSuspectedBot(
+    ip: string,
+    pageCount: number // eslint-disable-line @typescript-eslint/no-unused-vars
+): boolean {
+    // Known bot IPs (localhost etc)
+    if (KNOWN_BOT_IPS.includes(ip)) return true;
+
+    // We removed the pageCount <= 1 check!
+    // Real humans bounce from Facebook/Instagram ads all the time.
+    // Now that we track exact time on page, we want to see those people!
+
+    return false;
+}
+</file>
+
+<file path="src/app/page.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import {
+  Activity, Users, Eye, Clock, FileText,
+  LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
+  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X
+} from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+
+// --- TYPES ---
+interface AnalyticsEvent {
+  id: string;
+  created_at: string;
+  event_name: string;
+  path: string;
+  ip_address: string | null;
+  country: string | null;
+  session_id: string | null;
+  user_agent: string | null;
+}
+
+interface VisitorHistoryVisit {
+  path: string;
+  visited_at: string;
+  duration_seconds: number | null;
+}
+
+interface VisitorHistory {
+  visits: VisitorHistoryVisit[];
+  total_pageviews: number;
+  first_seen: string | null;
+  last_seen: string | null;
+}
+
+interface DashboardData {
+  liveUsers: number;
+  totalPageviews: number;
+  uniqueVisitors: number;
+  uniquePages: number;
+  chartData: {
+    name: string;
+    visitors: number;
+    pageviews: number;
+    unique_pages: number;
+    avg_per_user: number;
+  }[];
+  recentEvents: AnalyticsEvent[];
+  abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
+  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string }[];
+}
+
+interface InsightsData {
+  totalConverters: number;
+  totalVisitors: number;
+  conversionRate: string;
+  pagesBeforePurchase: { page: string; converterCount: number; percentage: number }[];
+  pageEngagement: { page: string; views: number; uniqueVisitors: number; avgTimeSeconds: number | null; exitRate: number }[];
+  topFlows: { flow: string; count: number }[];
+  converterAvg: { pagesPerSession: string; sessionDuration: number };
+  allVisitorAvg: { pagesPerSession: string; sessionDuration: number };
+}
+
+interface CardProps {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  isActive?: boolean;
+  onClick?: () => void;
+}
+
+interface TabButtonProps {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}
+
+type MetricType = 'visitors' | 'pageviews' | 'unique_pages' | 'avg_per_user';
+type SortField = 'views' | 'uniqueVisitors' | 'avgTimeSeconds' | 'exitRate';
+
+function formatDuration(seconds: number | null): string {
+  if (seconds === null) return '—';
+  if (seconds < 60) return `${seconds}s`;
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins < 60) return `${mins}m ${secs}s`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h ${mins % 60}m`;
+}
+
+export default function Dashboard() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('7d');
+  const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
+  const [filterBots, setFilterBots] = useState(true); // Default to Bots Hidden
+  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'insights'>('overview');
+  const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
+  const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
+  const [visitorHistory, setVisitorHistory] = useState<VisitorHistory | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [engagementSort, setEngagementSort] = useState<{ field: SortField; asc: boolean }>({ field: 'views', asc: false });
+  const [attachingEmail, setAttachingEmail] = useState(false);
+  const [emailInput, setEmailInput] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
+
+  // Fetch visitor history when an IP is selected
+  useEffect(() => {
+    if (!selectedVisitorIp) {
+      setVisitorHistory(null);
+      return;
+    }
+    let cancelled = false;
+    async function fetchHistory() {
+      setHistoryLoading(true);
+      try {
+        const res = await fetch(
+          `/api/visitor-history?ip=${encodeURIComponent(selectedVisitorIp!)}&range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok && !cancelled) {
+          setVisitorHistory(await res.json());
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    }
+    fetchHistory();
+    return () => { cancelled = true; };
+  }, [selectedVisitorIp, range, filterAdmin, filterBots]);
+
+  // Fetch insights data when insights tab is active
+  useEffect(() => {
+    if (activeTab !== 'insights') return;
+    let cancelled = false;
+    async function fetchInsights() {
+      setInsightsLoading(true);
+      try {
+        const res = await fetch(
+          `/api/insights?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${Date.now()}`,
+          { cache: 'no-store' }
+        );
+        if (res.ok && !cancelled) {
+          setInsightsData(await res.json());
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setInsightsLoading(false);
+      }
+    }
+    fetchInsights();
+    return () => { cancelled = true; };
+  }, [activeTab, range, filterAdmin, filterBots]);
+
+  useEffect(() => {
+    async function fetchData() {
+      // Skip fetch if tab is hidden
+      if (document.hidden) return;
+      try {
+        const timestamp = new Date().getTime();
+        const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, {
+          cache: 'no-store',
+          headers: {
+            'Pragma': 'no-cache',
+            'Cache-Control': 'no-cache'
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          setData(json);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // Immediately fetch on tab re-focus
+    function handleVisibility() {
+      if (!document.hidden) fetchData();
+    }
+
+    fetchData();
+    const interval = setInterval(fetchData, 30000); // Poll every 30s
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [range, filterAdmin, filterBots]);
+
+  const getChartTitle = () => {
+    switch (activeMetric) {
+      case 'visitors': return 'Unique Visitors Trend';
+      case 'pageviews': return 'Page Views Trend';
+      case 'unique_pages': return 'Unique Pages Trend';
+      case 'avg_per_user': return 'Avg. Pages/User Trend';
+      default: return 'Trend';
+    }
+  };
+
+  const getMetricColor = () => {
+    switch (activeMetric) {
+      case 'visitors': return '#3b82f6'; // Blue
+      case 'pageviews': return '#a855f7'; // Purple
+      case 'unique_pages': return '#eab308'; // Yellow
+      case 'avg_per_user': return '#22c55e'; // Green
+      default: return '#3b82f6';
+    }
+  };
+
+  if (!data && loading) return <div className="min-h-screen bg-neutral-900 flex items-center justify-center text-white">Loading...</div>;
+  if (!data) return <div className="min-h-screen bg-neutral-900 text-white p-10">Failed to load data.</div>;
+
+  return (
+    <div className="min-h-screen bg-neutral-900 text-white p-6 md:p-12 font-sans">
+      <div className="max-w-6xl mx-auto space-y-8">
+
+        {/* HEADER */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-3xl font-bold flex items-center gap-2">
+              <span className="text-blue-500">DreamPlay</span> Analytics
+            </h1>
+            <div className="flex items-center gap-2 mt-2 text-sm text-green-400 bg-green-400/10 px-3 py-1 rounded-full w-fit">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              {data.liveUsers} Live Users
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* ADMIN FILTER TOGGLE */}
+            <button
+              onClick={() => setFilterAdmin(!filterAdmin)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all border ${filterAdmin
+                ? 'bg-red-500/20 text-red-400 border-red-500/50'
+                : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                }`}
+            >
+              <ShieldAlert className="w-4 h-4" />
+              {filterAdmin ? 'Admin Hidden' : 'Show Admin'}
+            </button>
+
+            {/* BOT FILTER TOGGLE */}
+            <button
+              onClick={() => setFilterBots(!filterBots)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition-all border ${filterBots
+                ? 'bg-orange-500/20 text-orange-400 border-orange-500/50'
+                : 'bg-neutral-800 text-neutral-500 border-neutral-700 hover:border-neutral-600'
+                }`}
+            >
+              <Bot className="w-4 h-4" />
+              {filterBots ? 'Bots Hidden' : 'Show Bots'}
+            </button>
+
+            {/* TIME RANGE CONTROLS */}
+            <div className="bg-neutral-800 p-1 rounded-lg border border-neutral-700 flex">
+              {['24h', '7d', '30d', 'all'].map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRange(r)}
+                  className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${range === r ? 'bg-blue-600 text-white' : 'text-neutral-400 hover:text-white hover:bg-neutral-700'
+                    }`}
+                >
+                  {r.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* TAB NAVIGATION */}
+        <div className="flex border-b border-neutral-800 overflow-x-auto">
+          <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={<LayoutDashboard size={16} />} label="Traffic Overview" />
+          <TabButton active={activeTab === 'visitors'} onClick={() => setActiveTab('visitors')} icon={<Network size={16} />} label="Visitors" />
+          <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<TrendingUp size={16} />} label="Insights" />
+          <TabButton active={activeTab === 'ab'} onClick={() => setActiveTab('ab')} icon={<FlaskConical size={16} />} label="A/B Tests" />
+          <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<TableProperties size={16} />} label="Raw Logs" />
+        </div>
+
+        {/* --- TAB CONTENT: OVERVIEW --- */}
+        {activeTab === 'overview' && (
+          <div className="space-y-6 animate-in fade-in">
+            {/* KPI CARDS - Clickable to change Chart */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card
+                title="Unique Visitors"
+                value={data.uniqueVisitors}
+                icon={<Users className="text-blue-400" />}
+                isActive={activeMetric === 'visitors'}
+                onClick={() => setActiveMetric('visitors')}
+              />
+              <Card
+                title="Total Pageviews"
+                value={data.totalPageviews}
+                icon={<Eye className="text-purple-400" />}
+                isActive={activeMetric === 'pageviews'}
+                onClick={() => setActiveMetric('pageviews')}
+              />
+              <Card
+                title="Unique Pages"
+                value={data.uniquePages}
+                icon={<FileText className="text-yellow-400" />}
+                isActive={activeMetric === 'unique_pages'}
+                onClick={() => setActiveMetric('unique_pages')}
+              />
+              <Card
+                title="Avg. Pages/User"
+                value={(data.totalPageviews / (data.uniqueVisitors || 1)).toFixed(1)}
+                icon={<Activity className="text-green-400" />}
+                isActive={activeMetric === 'avg_per_user'}
+                onClick={() => setActiveMetric('avg_per_user')}
+              />
+            </div>
+
+            {/* CHART */}
+            <div className="bg-neutral-800 p-6 rounded-xl border border-neutral-700 shadow-xl transition-all">
+              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+                <Activity className="w-5 h-5" style={{ color: getMetricColor() }} />
+                {getChartTitle()}
+              </h3>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={data.chartData}>
+                    <defs>
+                      <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={getMetricColor()} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={getMetricColor()} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
+                    <XAxis dataKey="name" stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#666" fontSize={12} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#171717', border: '1px solid #333', borderRadius: '8px' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={activeMetric}
+                      stroke={getMetricColor()}
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorMetric)"
+                      animationDuration={500}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: VISITORS --- */}
+        {activeTab === 'visitors' && (
+          <div className="animate-in fade-in">
+            {/* If a visitor is selected, show their detail view */}
+            {selectedVisitorIp ? (
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                {/* Header with back button */}
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex items-center gap-4">
+                  <button
+                    onClick={() => setSelectedVisitorIp(null)}
+                    className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-neutral-700"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Visitors
+                  </button>
+                  <div className="h-5 w-px bg-neutral-700" />
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2 font-mono">
+                    <Network className="w-4 h-4 text-blue-400" />
+                    {selectedVisitorIp}
+                    {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email && (
+                      <span className="text-sm font-sans font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2">
+                        {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email}
+                      </span>
+                    )}
+                  </h2>
+                  <div className="ml-auto flex items-center gap-2">
+                    {attachingEmail ? (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (!emailInput.trim() || !selectedVisitorIp) return;
+                          setEmailSaving(true);
+                          try {
+                            const postRes = await fetch('/api/ip-email', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ip: selectedVisitorIp, email: emailInput.trim() }),
+                            });
+                            const postData = await postRes.json();
+                            if (!postRes.ok) {
+                              alert(`Failed to save: ${postData.error || postRes.statusText}`);
+                              setEmailSaving(false);
+                              return;
+                            }
+                            // Refresh data to show the new email
+                            const timestamp = new Date().getTime();
+                            const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, { cache: 'no-store' });
+                            if (res.ok) setData(await res.json());
+                          } catch (err) {
+                            console.error(err);
+                            alert(`Network error: ${err}`);
+                          } finally {
+                            setEmailSaving(false);
+                            setAttachingEmail(false);
+                            setEmailInput('');
+                          }
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <input
+                          type="email"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          placeholder="user@example.com"
+                          autoFocus
+                          className="bg-neutral-900 border border-neutral-600 rounded-md px-3 py-1.5 text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-56"
+                        />
+                        <button
+                          type="submit"
+                          disabled={emailSaving || !emailInput.trim()}
+                          className="p-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors"
+                        >
+                          {emailSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setAttachingEmail(false); setEmailInput(''); }}
+                          className="p-1.5 rounded-md bg-neutral-700 hover:bg-neutral-600 text-neutral-300 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </form>
+                    ) : (
+                      <button
+                        onClick={() => setAttachingEmail(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 transition-colors"
+                      >
+                        <Mail size={14} />
+                        Attach Email
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {historyLoading ? (
+                  <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading visitor history…
+                  </div>
+                ) : visitorHistory ? (
+                  <>
+                    {/* Visitor metadata cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Total Pageviews</div>
+                        <div className="text-xl font-bold text-white">{visitorHistory.total_pageviews}</div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Pages Visited</div>
+                        <div className="text-xl font-bold text-white">
+                          {new Set(visitorHistory.visits.map(v => v.path)).size}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">First Seen</div>
+                        <div className="text-sm font-medium text-white">
+                          {visitorHistory.first_seen ? new Date(visitorHistory.first_seen).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Last Seen</div>
+                        <div className="text-sm font-medium text-white">
+                          {visitorHistory.last_seen ? new Date(visitorHistory.last_seen).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Visit history table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-neutral-400">
+                        <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                          <tr>
+                            <th className="px-6 py-3 w-12">#</th>
+                            <th className="px-6 py-3">Page</th>
+                            <th className="px-6 py-3">Visited At</th>
+                            <th className="px-6 py-3">Time on Page</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-neutral-700/50">
+                          {visitorHistory.visits.map((visit, i) => (
+                            <tr key={i} className="hover:bg-white/5 transition-colors">
+                              <td className="px-6 py-3 text-neutral-500 font-mono text-xs">{i + 1}</td>
+                              <td className="px-6 py-3 text-neutral-200 max-w-md">
+                                <div className="flex items-center gap-2">
+                                  <span className="truncate" title={visit.path}>{visit.path}</span>
+                                  {visit.path.startsWith('http') && (
+                                    <a href={visit.path} target="_blank" rel="noopener noreferrer" className="text-neutral-500 hover:text-blue-400 flex-shrink-0">
+                                      <ExternalLink size={12} />
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap text-neutral-300">
+                                {new Date(visit.visited_at).toLocaleString()}
+                              </td>
+                              <td className="px-6 py-3 whitespace-nowrap">
+                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${visit.duration_seconds !== null
+                                  ? 'bg-blue-500/10 text-blue-400'
+                                  : 'bg-neutral-700/50 text-neutral-500'
+                                  }`}>
+                                  {formatDuration(visit.duration_seconds)}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                          {visitorHistory.visits.length === 0 && (
+                            <tr><td colSpan={4} className="px-6 py-8 text-center text-neutral-500">No page visits recorded.</td></tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                ) : (
+                  <div className="px-6 py-12 text-center text-neutral-500">Failed to load visitor history.</div>
+                )}
+              </div>
+            ) : (
+              /* Visitor list table */
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                    <Network className="w-4 h-4 text-blue-400" /> Recent Visitors (Last 1000 Events)
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm text-neutral-400">
+                    <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                      <tr>
+                        <th className="px-6 py-3">IP Address</th>
+                        <th className="px-6 py-3">Email (if found)</th>
+                        <th className="px-6 py-3">Country</th>
+                        <th className="px-6 py-3">Page Hits</th>
+                        <th className="px-6 py-3">Last Visited Page</th>
+                        <th className="px-6 py-3">Last Seen</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-700/50">
+                      {data?.visitorStats?.map((visitor, i) => (
+                        <tr
+                          key={i}
+                          onClick={() => setSelectedVisitorIp(visitor.ip)}
+                          className="hover:bg-white/5 transition-colors cursor-pointer group"
+                        >
+                          <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {visitor.email ? (
+                              <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{visitor.email}</span>
+                            ) : (
+                              <span className="text-neutral-600 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 flex items-center gap-2">
+                            <Globe size={12} /> {visitor.country}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
+                          </td>
+                          <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
+                            {visitor.lastPath}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {new Date(visitor.lastSeen).toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                      {(!data?.visitorStats || data.visitorStats.length === 0) && (
+                        <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: INSIGHTS --- */}
+        {activeTab === 'insights' && (
+          <div className="space-y-6 animate-in fade-in">
+            {insightsLoading ? (
+              <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Analyzing visitor journeys…
+              </div>
+            ) : insightsData ? (
+              <>
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-neutral-800 p-5 rounded-xl border border-neutral-700">
+                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Visitors Who Reached Checkout</div>
+                    <div className="text-3xl font-bold text-white">{insightsData.totalConverters}<span className="text-lg text-neutral-500 ml-1">/ {insightsData.totalVisitors}</span></div>
+                    <div className="text-sm text-blue-400 mt-1">{insightsData.conversionRate}% conversion rate</div>
+                  </div>
+                  <div className="bg-neutral-800 p-5 rounded-xl border border-neutral-700">
+                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Converter Avg. Session</div>
+                    <div className="text-3xl font-bold text-white">{insightsData.converterAvg.pagesPerSession} <span className="text-lg text-neutral-500">pages</span></div>
+                    <div className="text-sm text-neutral-400 mt-1">{formatDuration(insightsData.converterAvg.sessionDuration)} avg duration</div>
+                  </div>
+                  <div className="bg-neutral-800 p-5 rounded-xl border border-neutral-700">
+                    <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">All Visitor Avg. Session</div>
+                    <div className="text-3xl font-bold text-white">{insightsData.allVisitorAvg.pagesPerSession} <span className="text-lg text-neutral-500">pages</span></div>
+                    <div className="text-sm text-neutral-400 mt-1">{formatDuration(insightsData.allVisitorAvg.sessionDuration)} avg duration</div>
+                  </div>
+                </div>
+
+                {/* Panel 1: Pages That Drive Purchases */}
+                <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                  <div className="p-4 border-b border-neutral-700">
+                    <h3 className="font-semibold text-neutral-200 flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-green-400" />
+                      Pages That Drive Purchases
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-1">Of visitors who reached a checkout page, what % visited each page beforehand</p>
+                  </div>
+                  {insightsData.pagesBeforePurchase.length === 0 ? (
+                    <div className="px-6 py-12 text-center text-neutral-500">No converters found in this time range.</div>
+                  ) : (
+                    <div className="divide-y divide-neutral-700/50">
+                      {insightsData.pagesBeforePurchase.map((item, i) => (
+                        <div key={i} className="px-6 py-3 flex items-center gap-4 hover:bg-white/5 transition-colors">
+                          <span className="text-neutral-500 font-mono text-xs w-6 text-right">{i + 1}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-neutral-200 text-sm truncate" title={item.page}>{item.page}</span>
+                              <span className="text-sm font-mono ml-3 flex-shrink-0">
+                                <span className="text-green-400 font-bold">{item.percentage}%</span>
+                                <span className="text-neutral-500 ml-1">({item.converterCount})</span>
+                              </span>
+                            </div>
+                            <div className="w-full bg-neutral-700/50 rounded-full h-1.5">
+                              <div
+                                className="bg-green-500/70 h-1.5 rounded-full transition-all duration-500"
+                                style={{ width: `${item.percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Panel 1.5: Top Page Flows */}
+                {insightsData.topFlows.length > 0 && (
+                  <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                    <div className="p-4 border-b border-neutral-700">
+                      <h3 className="font-semibold text-neutral-200 flex items-center gap-2">
+                        <ArrowUpRight className="w-4 h-4 text-blue-400" />
+                        Common Converter Page Flows
+                      </h3>
+                      <p className="text-xs text-neutral-500 mt-1">Most frequent page-to-page transitions among visitors who reached checkout</p>
+                    </div>
+                    <div className="divide-y divide-neutral-700/50">
+                      {insightsData.topFlows.map((flow, i) => (
+                        <div key={i} className="px-6 py-3 flex items-center justify-between hover:bg-white/5 transition-colors">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-neutral-500 font-mono text-xs w-6 text-right">{i + 1}</span>
+                            <span className="text-neutral-200 text-sm truncate">{flow.flow}</span>
+                          </div>
+                          <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-mono flex-shrink-0 ml-3">{flow.count}×</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Panel 2: Page Engagement Table */}
+                <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                  <div className="p-4 border-b border-neutral-700">
+                    <h3 className="font-semibold text-neutral-200 flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-purple-400" />
+                      Page Engagement
+                    </h3>
+                    <p className="text-xs text-neutral-500 mt-1">Click column headers to sort</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-neutral-400">
+                      <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                        <tr>
+                          <th className="px-6 py-3">Page</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'views', asc: s.field === 'views' ? !s.asc : false }))}>Views {engagementSort.field === 'views' && (engagementSort.asc ? '↑' : '↓')}</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'uniqueVisitors', asc: s.field === 'uniqueVisitors' ? !s.asc : false }))}>Unique Visitors {engagementSort.field === 'uniqueVisitors' && (engagementSort.asc ? '↑' : '↓')}</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'avgTimeSeconds', asc: s.field === 'avgTimeSeconds' ? !s.asc : false }))}>Avg. Time {engagementSort.field === 'avgTimeSeconds' && (engagementSort.asc ? '↑' : '↓')}</th>
+                          <th className="px-6 py-3 cursor-pointer hover:text-white transition-colors" onClick={() => setEngagementSort(s => ({ field: 'exitRate', asc: s.field === 'exitRate' ? !s.asc : false }))}>Exit Rate {engagementSort.field === 'exitRate' && (engagementSort.asc ? '↑' : '↓')}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-700/50">
+                        {[...insightsData.pageEngagement]
+                          .sort((a, b) => {
+                            const aVal = a[engagementSort.field] ?? -1;
+                            const bVal = b[engagementSort.field] ?? -1;
+                            return engagementSort.asc ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
+                          })
+                          .map((page, i) => (
+                            <tr key={i} className="hover:bg-white/5 transition-colors">
+                              <td className="px-6 py-3 text-neutral-200 max-w-xs truncate" title={page.page}>{page.page}</td>
+                              <td className="px-6 py-3 font-mono">{page.views}</td>
+                              <td className="px-6 py-3 font-mono">{page.uniqueVisitors}</td>
+                              <td className="px-6 py-3">
+                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${page.avgTimeSeconds !== null ? 'bg-blue-500/10 text-blue-400' : 'bg-neutral-700/50 text-neutral-500'}`}>
+                                  {formatDuration(page.avgTimeSeconds)}
+                                </span>
+                              </td>
+                              <td className="px-6 py-3">
+                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${page.exitRate > 30 ? 'bg-red-500/10 text-red-400' :
+                                  page.exitRate > 15 ? 'bg-yellow-500/10 text-yellow-400' :
+                                    'bg-green-500/10 text-green-400'
+                                  }`}>
+                                  {page.exitRate}%
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="px-6 py-12 text-center text-neutral-500">Failed to load insights data.</div>
+            )}
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: A/B TESTS --- */}
+        {activeTab === 'ab' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
+            {data.abResults.length === 0 ? (
+              <div className="col-span-2 text-center py-20 text-neutral-500">No A/B tests recorded yet.</div>
+            ) : (
+              data.abResults.map((variant) => (
+                <div key={variant.variant} className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-xl font-bold capitalize text-white">{variant.variant}</h3>
+                    <span className="text-xs font-mono bg-neutral-900 px-2 py-1 rounded text-neutral-400">ID: {variant.variant}</span>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
+                      <span className="text-sm text-neutral-400">Visitors</span>
+                      <span className="font-mono font-bold">{variant.visitors}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
+                      <span className="text-sm text-neutral-400">Conversions</span>
+                      <span className="font-mono font-bold text-green-400">{variant.conversions}</span>
+                    </div>
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>Conversion Rate</span>
+                        <span className="font-bold">{variant.conversion_rate}%</span>
+                      </div>
+                      <div className="w-full bg-neutral-700 rounded-full h-2">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(Number(variant.conversion_rate), 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: LOGS --- */}
+        {activeTab === 'logs' && (
+          <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden animate-in fade-in">
+            <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
+              <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-neutral-400" /> Recent Events
+              </h2>
+            </div>
+            <div className="max-h-[600px] overflow-y-auto divide-y divide-neutral-700/50">
+              {data.recentEvents.map((event, i) => (
+                <div key={i} className="p-4 hover:bg-white/5 transition-colors group flex flex-col sm:flex-row gap-4 text-sm">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`font-bold ${event.event_name.includes('click') ? 'text-green-400' : 'text-blue-400'}`}>
+                        {event.event_name}
+                      </span>
+                      <span className="text-neutral-500">•</span>
+                      <span className="text-neutral-300">{event.path}</span>
+                    </div>
+                    <div className="flex gap-4 text-xs text-neutral-500 font-mono">
+                      <span className="flex items-center gap-1"><Globe size={10} /> {event.country || 'Unknown'}</span>
+                      <span className="flex items-center gap-1" title={event.user_agent || 'Unknown UA'}><Smartphone size={10} /> {event.user_agent?.includes('Mac') ? 'Mac' : 'Device'}</span>
+                      <span className="opacity-50">{event.ip_address}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-neutral-500 whitespace-nowrap">
+                    {new Date(event.created_at).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// --- COMPONENTS ---
+
+function Card({ title, value, icon, isActive, onClick }: CardProps) {
+  return (
+    <div
+      onClick={onClick}
+      className={`bg-neutral-800 p-6 rounded-xl border flex flex-col justify-between h-28 cursor-pointer transition-all hover:bg-neutral-700/80 ${isActive ? 'border-blue-500 ring-1 ring-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.2)]' : 'border-neutral-700 hover:border-neutral-600'
+        }`}
+    >
+      <div className="flex items-center justify-between text-neutral-400 text-xs font-medium uppercase tracking-wider">
+        {title}
+        {icon}
+      </div>
+      <div className="text-3xl font-bold text-white mt-2">{value}</div>
+    </div>
+  );
+}
+
+function TabButton({ active, onClick, icon, label }: TabButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2 ${active
+        ? 'border-blue-500 text-blue-400 bg-neutral-800/50'
+        : 'border-transparent text-neutral-400 hover:text-white hover:bg-neutral-800'
+        }`}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+</file>
+
+<file path="src/app/api/stats/route.ts">
+import { createClient } from '@supabase/supabase-js';
+import { NextResponse } from 'next/server';
+import { isSuspectedBot } from '@/lib/botDetection';
+import { isAdminIP } from '@/lib/adminIPs';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function GET(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get('range') || '7d';
+    const excludeAdmin = searchParams.get('exclude_admin') === 'true';
+    const excludeBots = searchParams.get('exclude_bots') === 'true';
+
+    const now = new Date();
+    let startTime = new Date();
+
+    // 1. Determine Time Range
+    if (range === '24h') startTime.setHours(now.getHours() - 24);
+    if (range === '7d') startTime.setDate(now.getDate() - 7);
+    if (range === '30d') startTime.setDate(now.getDate() - 30);
+    if (range === 'all') startTime = new Date(0);
+
+    try {
+        // 2. Fetch Logs for the Time Range
+        const { data: logs, error } = await supabase
+            .from('analytics_logs')
+            .select('id, created_at, event_name, path, ip_address, country, session_id, user_agent, metadata')
+            .gt('created_at', startTime.toISOString())
+            .gt('created_at', startTime.toISOString())
+            .order('created_at', { ascending: false }) // Descending: Newest first to ensure we capture latest data
+            .limit(10000);
+
+        if (error) throw error;
+
+        // Reverse to chronological order (Oldest -> Newest) for Charts and Iteration logic
+        let safeLogs = (logs || []).reverse();
+
+        // Filter Admin IP
+        if (excludeAdmin) {
+            safeLogs = safeLogs.filter(log => !isAdminIP(log.ip_address || ''));
+        }
+
+        // Filter suspected bots
+        if (excludeBots) {
+            // First pass: count pages per IP
+            const ipPageCounts = new Map<string, number>();
+            safeLogs.forEach(log => {
+                const ip = log.ip_address || 'unknown';
+                ipPageCounts.set(ip, (ipPageCounts.get(ip) || 0) + 1);
+            });
+            safeLogs = safeLogs.filter(log => {
+                const ip = log.ip_address || 'unknown';
+                return !isSuspectedBot(ip, ipPageCounts.get(ip) || 0);
+            });
+        }
+
+        // --- CALCULATE METRICS ---
+
+        // A. Live Users (Last 5 mins)
+        const fiveMinsAgo = new Date(now.getTime() - 5 * 60 * 1000).getTime();
+        const liveUsers = new Set(
+            safeLogs
+                .filter(l => new Date(l.created_at).getTime() > fiveMinsAgo)
+                .map(l => l.session_id)
+        ).size;
+
+        // B. Unique Visitors & Pages (Based on IP or Session)
+        const uniqueVisitors = new Set(safeLogs.map(l => l.ip_address || l.session_id)).size;
+        const uniquePages = new Set(safeLogs.map(l => l.path)).size;
+        const totalPageviews = safeLogs.filter(l => l.event_name === 'pageview').length;
+
+        // C. Process Chart Data
+        const chartMap = new Map<string, { visitors: Set<string>, pageviews: number, paths: Set<string> }>();
+
+        safeLogs.forEach(log => {
+            const date = new Date(log.created_at);
+            let key = '';
+
+            if (range === '24h') {
+                key = date.toLocaleTimeString('en-US', { hour: 'numeric' });
+            } else {
+                key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
+
+            if (!chartMap.has(key)) {
+                chartMap.set(key, { visitors: new Set(), pageviews: 0, paths: new Set() });
+            }
+            const entry = chartMap.get(key)!;
+
+            // Visitors (Session ID)
+            if (log.session_id) entry.visitors.add(log.session_id);
+            else if (log.ip_address) entry.visitors.add(log.ip_address); // Fallback
+
+            // Pageviews (Only count 'pageview' events)
+            if (log.event_name === 'pageview') {
+                entry.pageviews += 1;
+            }
+
+            // Unique Pages (Path)
+            if (log.path) entry.paths.add(log.path);
+        });
+
+        // Convert Map to Array for Recharts
+        const chartData = Array.from(chartMap.entries()).map(([name, data]) => ({
+            name,
+            visitors: data.visitors.size,
+            pageviews: data.pageviews,
+            unique_pages: data.paths.size,
+            avg_per_user: data.visitors.size > 0 ? parseFloat((data.pageviews / data.visitors.size).toFixed(1)) : 0
+        }));
+
+        // D. A/B Test Data (Calculated in-memory for simplicity)
+        const abEvents = safeLogs.filter(l => l.metadata?.variant);
+        const variants = new Set(abEvents.map(l => l.metadata.variant));
+        const abResults = Array.from(variants).map(variant => {
+            const variantLogs = abEvents.filter(l => l.metadata.variant === variant);
+            // "experiment_view" is a common event name for seeing a variant
+            const visitors = new Set(variantLogs.filter(l => l.event_name === 'experiment_view').map(l => l.session_id)).size;
+            const conversions = new Set(variantLogs.filter(l => l.event_name === 'conversion' || l.event_name === 'click_preorder').map(l => l.session_id)).size;
+
+            return {
+                variant,
+                visitors,
+                conversions,
+                conversion_rate: visitors > 0 ? ((conversions / visitors) * 100).toFixed(1) : 0
+            };
+        });
+
+        // E. Visitor Stats (Derived from safeLogs for consistency)
+        // We take the last 1000 logs from the *current filtered view*
+        const recentLogs = [...safeLogs].reverse().slice(0, 1000);
+
+        // Pre-calculate email-to-IP mapping for ALL logs retrieved so far to catch older emails
+        const ipToEmailMap = new Map<string, string>();
+        safeLogs.forEach(log => {
+            if (log.metadata?.email && log.ip_address) {
+                ipToEmailMap.set(log.ip_address, log.metadata.email);
+            }
+        });
+
+        // Fetch manual IP→email mappings and merge (manual takes priority)
+        const { data: manualMappings } = await supabase
+            .from('ip_email_map')
+            .select('ip_address, email');
+
+        (manualMappings || []).forEach((row: { ip_address: string; email: string }) => {
+            ipToEmailMap.set(row.ip_address, row.email);
+        });
+
+        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string }>();
+
+        recentLogs.forEach(log => {
+            const ip = log.ip_address || 'unknown';
+
+            if (!visitorMap.has(ip)) {
+                visitorMap.set(ip, {
+                    ip,
+                    count: 0,
+                    lastPath: log.path,
+                    lastSeen: log.created_at,
+                    country: log.country || 'Unknown',
+                    device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
+                    email: ipToEmailMap.get(ip)
+                });
+            }
+            visitorMap.get(ip)!.count += 1;
+        });
+
+        let visitorStats = Array.from(visitorMap.values()).sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
+
+        // Re-apply filters to the final visitor list to ensure consistency
+        // (the global filters run on full safeLogs, but visitorStats is built from a 1000-log slice)
+        if (excludeAdmin) {
+            visitorStats = visitorStats.filter(v => !isAdminIP(v.ip));
+        }
+        if (excludeBots) {
+            visitorStats = visitorStats.filter(v => !isSuspectedBot(v.ip, v.count));
+        }
+
+        return NextResponse.json({
+            liveUsers,
+            totalPageviews,
+            uniqueVisitors,
+            uniquePages,
+            chartData,
+            recentEvents: safeLogs.slice().reverse().slice(0, 50),
+            abResults,
+            visitorStats
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
+                'CDN-Cache-Control': 'no-store',
+                'Vercel-CDN-Cache-Control': 'no-store',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
+    }
+}
+</file>
+
+</files>
