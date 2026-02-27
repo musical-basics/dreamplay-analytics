@@ -109,7 +109,7 @@ export default function Dashboard() {
   const [attachingEmail, setAttachingEmail] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
-  const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string }[] | null>(null);
+  const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string; purchased: boolean }[] | null>(null);
   const [emailVisitorsLoading, setEmailVisitorsLoading] = useState(false);
 
   // Fetch visitor history when an IP is selected
@@ -770,6 +770,9 @@ export default function Dashboard() {
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{visitor.email}</span>
+                              {visitor.purchased && (
+                                <span className="ml-2 bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">Purchased</span>
+                              )}
                             </td>
                             <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
                             <td className="px-6 py-4 flex items-center gap-2">

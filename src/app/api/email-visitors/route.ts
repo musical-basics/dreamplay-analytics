@@ -12,6 +12,11 @@ const supabase = createClient(
     process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Email repo Supabase client (for cross-referencing subscriber tags)
+const emailSupabase = process.env.EMAIL_SUPABASE_URL && process.env.EMAIL_SUPABASE_SERVICE_KEY
+    ? createClient(process.env.EMAIL_SUPABASE_URL, process.env.EMAIL_SUPABASE_SERVICE_KEY)
+    : null;
+
 const noCacheHeaders = {
     'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',
     'CDN-Cache-Control': 'no-store',
@@ -105,6 +110,7 @@ export async function GET(request: Request) {
             country: string;
             device: string;
             email: string;
+            purchased: boolean;
         }>();
 
         // Logs are newest-first, so first occurrence = most recent
@@ -122,6 +128,7 @@ export async function GET(request: Request) {
                     country: log.country || 'Unknown',
                     device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
                     email,
+                    purchased: false,
                 });
             }
 
@@ -129,6 +136,39 @@ export async function GET(request: Request) {
                 visitorMap.get(ip)!.count += 1;
             }
         });
+
+        // 4. Cross-reference with email repo DB for "Purchased" tag
+        if (emailSupabase) {
+            try {
+                const uniqueEmails = Array.from(new Set(Array.from(visitorMap.values()).map(v => v.email)));
+
+                if (uniqueEmails.length > 0) {
+                    const { data: subscribers } = await emailSupabase
+                        .from('subscribers')
+                        .select('email, tags')
+                        .in('email', uniqueEmails);
+
+                    if (subscribers) {
+                        const purchasedEmails = new Set<string>();
+                        subscribers.forEach((sub: { email: string; tags: string[] | null }) => {
+                            if (sub.tags && sub.tags.includes('Purchased')) {
+                                purchasedEmails.add(sub.email);
+                            }
+                        });
+
+                        // Mark purchased visitors
+                        visitorMap.forEach(visitor => {
+                            if (purchasedEmails.has(visitor.email)) {
+                                visitor.purchased = true;
+                            }
+                        });
+                    }
+                }
+            } catch (emailErr) {
+                console.error('[Email Visitors API] Failed to fetch subscriber tags:', emailErr);
+                // Non-fatal: continue without purchased info
+            }
+        }
 
         const emailVisitorStats = Array.from(visitorMap.values())
             .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
@@ -140,3 +180,4 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'Failed to fetch email visitors' }, { status: 500, headers: noCacheHeaders });
     }
 }
+
