@@ -28,18 +28,31 @@ export async function GET(request: Request) {
     if (range === 'all') startTime = new Date(0);
 
     try {
-        // 2. Fetch Logs for the Time Range
-        const { data: logs, error } = await supabase
-            .from('analytics_logs')
-            .select('id, created_at, event_name, path, ip_address, country, session_id, user_agent, metadata')
-            .gt('created_at', startTime.toISOString())
-            .order('created_at', { ascending: true })
-            .limit(50000);
+        // 2. Fetch ALL Logs for the Time Range (paginated to avoid row limits)
+        const PAGE_SIZE = 10000;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let allLogs: any[] = [];
+        let offset = 0;
+        let hasMore = true;
 
-        if (error) throw error;
+        while (hasMore) {
+            const { data: page, error } = await supabase
+                .from('analytics_logs')
+                .select('id, created_at, event_name, path, ip_address, country, session_id, user_agent, metadata')
+                .gt('created_at', startTime.toISOString())
+                .order('created_at', { ascending: true })
+                .range(offset, offset + PAGE_SIZE - 1);
 
-        // Data is already in chronological order (Oldest -> Newest) for Charts and Iteration logic
-        let safeLogs = logs || [];
+            if (error) throw error;
+
+            const rows = page || [];
+            allLogs = allLogs.concat(rows);
+            offset += PAGE_SIZE;
+            hasMore = rows.length === PAGE_SIZE;
+        }
+
+        // Data is in chronological order (Oldest -> Newest)
+        let safeLogs = allLogs;
 
         // Filter Admin IP
         if (excludeAdmin) {
