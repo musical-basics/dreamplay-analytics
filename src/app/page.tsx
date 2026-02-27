@@ -228,7 +228,7 @@ export default function Dashboard() {
     async function fetchChatSessions() {
       setChatSessionsLoading(true);
       try {
-        const res = await fetch(`/api/chat-sessions?_t=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`/api/chat-sessions?exclude_admin=${filterAdmin}&_t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok && !cancelled) {
           const json = await res.json();
           setChatSessions(json.sessions || []);
@@ -241,7 +241,7 @@ export default function Dashboard() {
     }
     fetchChatSessions();
     return () => { cancelled = true; };
-  }, [activeTab]);
+  }, [activeTab, filterAdmin]);
 
   // Fetch chat detail when a session is selected
   useEffect(() => {
@@ -1169,14 +1169,14 @@ export default function Dashboard() {
                         <div
                           key={msg.id}
                           className={`flex ${msg.role === 'user' ? 'justify-end' :
-                              msg.role === 'admin' ? 'justify-end' : 'justify-start'
+                            msg.role === 'admin' ? 'justify-end' : 'justify-start'
                             }`}
                         >
                           <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user'
-                              ? 'bg-blue-600 text-white rounded-tr-sm'
-                              : msg.role === 'admin'
-                                ? 'bg-orange-600 text-white rounded-tr-sm'
-                                : 'bg-neutral-700 text-neutral-200 rounded-tl-sm'
+                            ? 'bg-blue-600 text-white rounded-tr-sm'
+                            : msg.role === 'admin'
+                              ? 'bg-orange-600 text-white rounded-tr-sm'
+                              : 'bg-neutral-700 text-neutral-200 rounded-tl-sm'
                             }`}>
                             <div className="text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-60">
                               {msg.role === 'user' ? '👤 User' : msg.role === 'admin' ? '🛡️ Admin' : '🤖 AI'}
@@ -1239,6 +1239,7 @@ export default function Dashboard() {
                       <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                         <tr>
                           <th className="px-6 py-3">Email / ID</th>
+                          <th className="px-6 py-3">IP</th>
                           <th className="px-6 py-3">Status</th>
                           <th className="px-6 py-3">Messages</th>
                           <th className="px-6 py-3">Last Message</th>
@@ -1259,6 +1260,9 @@ export default function Dashboard() {
                               ) : (
                                 <span className="text-neutral-600 text-xs font-mono">{session.id.slice(0, 8)}…</span>
                               )}
+                            </td>
+                            <td className="px-6 py-4 font-mono text-xs text-neutral-400">
+                              {session.ip_address || '—'}
                             </td>
                             <td className="px-6 py-4">
                               {session.status === 'admin_takeover' ? (
@@ -1289,7 +1293,7 @@ export default function Dashboard() {
                           </tr>
                         ))}
                         {(!chatSessions || chatSessions.length === 0) && (
-                          <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No chat sessions yet.</td></tr>
+                          <tr><td colSpan={7} className="px-6 py-8 text-center text-neutral-500">No chat sessions yet.</td></tr>
                         )}
                       </tbody>
                     </table>
