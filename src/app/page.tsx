@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
-  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X
+  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X,
+  MessageCircle, Send
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -64,6 +65,28 @@ interface InsightsData {
   allVisitorAvg: { pagesPerSession: string; sessionDuration: number };
 }
 
+interface ChatSession {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  email: string | null;
+  status: string;
+  admin_takeover_at: string | null;
+  page_url: string | null;
+  ip_address: string | null;
+  message_count: number;
+  last_message: string | null;
+  last_message_role: string | null;
+}
+
+interface ChatMessage {
+  id: string;
+  session_id: string;
+  created_at: string;
+  role: string;
+  content: string;
+}
+
 interface CardProps {
   title: string;
   value: string | number;
@@ -98,7 +121,7 @@ export default function Dashboard() {
   const [range, setRange] = useState('7d');
   const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
   const [filterBots, setFilterBots] = useState(true); // Default to Bots Hidden
-  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'emailVisitors' | 'insights'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'emailVisitors' | 'insights' | 'chats'>('overview');
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
   const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
   const [visitorHistory, setVisitorHistory] = useState<VisitorHistory | null>(null);
@@ -111,6 +134,16 @@ export default function Dashboard() {
   const [emailSaving, setEmailSaving] = useState(false);
   const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string; purchased: boolean }[] | null>(null);
   const [emailVisitorsLoading, setEmailVisitorsLoading] = useState(false);
+
+  // Chat state
+  const [chatSessions, setChatSessions] = useState<ChatSession[] | null>(null);
+  const [chatSessionsLoading, setChatSessionsLoading] = useState(false);
+  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatDetailLoading, setChatDetailLoading] = useState(false);
+  const [selectedChatSession, setSelectedChatSession] = useState<ChatSession | null>(null);
+  const [adminReply, setAdminReply] = useState('');
+  const [adminReplySending, setAdminReplySending] = useState(false);
 
   // Fetch visitor history when an IP is selected
   useEffect(() => {
@@ -187,6 +220,82 @@ export default function Dashboard() {
     fetchEmailVisitors();
     return () => { cancelled = true; };
   }, [activeTab, filterAdmin, filterBots]);
+
+  // Fetch chat sessions when chats tab is active
+  useEffect(() => {
+    if (activeTab !== 'chats') return;
+    let cancelled = false;
+    async function fetchChatSessions() {
+      setChatSessionsLoading(true);
+      try {
+        const res = await fetch(`/api/chat-sessions?_t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok && !cancelled) {
+          const json = await res.json();
+          setChatSessions(json.sessions || []);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setChatSessionsLoading(false);
+      }
+    }
+    fetchChatSessions();
+    return () => { cancelled = true; };
+  }, [activeTab]);
+
+  // Fetch chat detail when a session is selected
+  useEffect(() => {
+    if (!selectedChatId) {
+      setChatMessages([]);
+      setSelectedChatSession(null);
+      return;
+    }
+    let cancelled = false;
+    async function fetchChatDetail() {
+      setChatDetailLoading(true);
+      try {
+        const res = await fetch(`/api/chat-sessions/${selectedChatId}?_t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok && !cancelled) {
+          const json = await res.json();
+          setChatMessages(json.messages || []);
+          setSelectedChatSession(json.session || null);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        if (!cancelled) setChatDetailLoading(false);
+      }
+    }
+    fetchChatDetail();
+    return () => { cancelled = true; };
+  }, [selectedChatId]);
+
+  const handleAdminReply = async () => {
+    if (!adminReply.trim() || !selectedChatId) return;
+    setAdminReplySending(true);
+    try {
+      const res = await fetch(`/api/chat-sessions/${selectedChatId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: adminReply }),
+      });
+      if (res.ok) {
+        setAdminReply('');
+        // Refresh messages
+        const detailRes = await fetch(`/api/chat-sessions/${selectedChatId}?_t=${Date.now()}`, { cache: 'no-store' });
+        if (detailRes.ok) {
+          const json = await detailRes.json();
+          setChatMessages(json.messages || []);
+          setSelectedChatSession(json.session || null);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Failed to send reply');
+    } finally {
+      setAdminReplySending(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -314,6 +423,7 @@ export default function Dashboard() {
           <TabButton active={activeTab === 'insights'} onClick={() => setActiveTab('insights')} icon={<TrendingUp size={16} />} label="Insights" />
           <TabButton active={activeTab === 'ab'} onClick={() => setActiveTab('ab')} icon={<FlaskConical size={16} />} label="A/B Tests" />
           <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<TableProperties size={16} />} label="Raw Logs" />
+          <TabButton active={activeTab === 'chats'} onClick={() => { setActiveTab('chats'); setSelectedChatId(null); }} icon={<MessageCircle size={16} />} label="Chats" />
         </div>
 
         {/* --- TAB CONTENT: OVERVIEW --- */}
@@ -985,6 +1095,207 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))
+            )}
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: CHATS --- */}
+        {activeTab === 'chats' && (
+          <div className="animate-in fade-in">
+            {selectedChatId ? (
+              /* Chat Detail View */
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex items-center gap-4">
+                  <button
+                    onClick={() => setSelectedChatId(null)}
+                    className="flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-neutral-700"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to Chats
+                  </button>
+                  <div className="h-5 w-px bg-neutral-700" />
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4 text-blue-400" />
+                    Chat Session
+                    {selectedChatSession?.email && (
+                      <span className="text-sm font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2">
+                        {selectedChatSession.email}
+                      </span>
+                    )}
+                    {selectedChatSession?.status === 'admin_takeover' && (
+                      <span className="text-xs font-medium text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded ml-2">
+                        Admin Takeover
+                      </span>
+                    )}
+                  </h2>
+                </div>
+
+                {chatDetailLoading ? (
+                  <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading conversation…
+                  </div>
+                ) : (
+                  <>
+                    {/* Session metadata */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Messages</div>
+                        <div className="text-xl font-bold text-white">{chatMessages.length}</div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Started</div>
+                        <div className="text-sm font-medium text-white">
+                          {selectedChatSession?.created_at ? new Date(selectedChatSession.created_at).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Page</div>
+                        <div className="text-sm font-medium text-white truncate" title={selectedChatSession?.page_url || ''}>
+                          {selectedChatSession?.page_url || '—'}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">IP</div>
+                        <div className="text-sm font-medium text-white font-mono">
+                          {selectedChatSession?.ip_address || '—'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Message Thread */}
+                    <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto">
+                      {chatMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex ${msg.role === 'user' ? 'justify-end' :
+                              msg.role === 'admin' ? 'justify-end' : 'justify-start'
+                            }`}
+                        >
+                          <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user'
+                              ? 'bg-blue-600 text-white rounded-tr-sm'
+                              : msg.role === 'admin'
+                                ? 'bg-orange-600 text-white rounded-tr-sm'
+                                : 'bg-neutral-700 text-neutral-200 rounded-tl-sm'
+                            }`}>
+                            <div className="text-[10px] font-semibold uppercase tracking-wider mb-1 opacity-60">
+                              {msg.role === 'user' ? '👤 User' : msg.role === 'admin' ? '🛡️ Admin' : '🤖 AI'}
+                            </div>
+                            {msg.content}
+                            <div className="text-[10px] opacity-40 mt-1">
+                              {new Date(msg.created_at).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {chatMessages.length === 0 && (
+                        <div className="text-center text-neutral-500 py-8">No messages in this session.</div>
+                      )}
+                    </div>
+
+                    {/* Admin Reply Input */}
+                    <div className="p-4 border-t border-neutral-700 bg-neutral-900/50">
+                      <div className="text-xs text-neutral-500 mb-2">
+                        💬 Send a reply as admin — this will pause the AI auto-response for 24 hours on this session.
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          value={adminReply}
+                          onChange={(e) => setAdminReply(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdminReply(); } }}
+                          placeholder="Type your reply..."
+                          className="flex-1 bg-neutral-800 border border-neutral-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-orange-500 focus:border-orange-500"
+                        />
+                        <button
+                          onClick={handleAdminReply}
+                          disabled={!adminReply.trim() || adminReplySending}
+                          className="bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white px-4 py-2.5 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"
+                        >
+                          {adminReplySending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                          Reply
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              /* Chat Sessions List */
+              <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
+                <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
+                  <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4 text-blue-400" />
+                    Recent Chat Sessions
+                  </h2>
+                </div>
+                {chatSessionsLoading ? (
+                  <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Loading chat sessions…
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-neutral-400">
+                      <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                        <tr>
+                          <th className="px-6 py-3">Email / ID</th>
+                          <th className="px-6 py-3">Status</th>
+                          <th className="px-6 py-3">Messages</th>
+                          <th className="px-6 py-3">Last Message</th>
+                          <th className="px-6 py-3">Page</th>
+                          <th className="px-6 py-3">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-700/50">
+                        {chatSessions?.map((session) => (
+                          <tr
+                            key={session.id}
+                            onClick={() => setSelectedChatId(session.id)}
+                            className="hover:bg-white/5 transition-colors cursor-pointer group"
+                          >
+                            <td className="px-6 py-4">
+                              {session.email ? (
+                                <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{session.email}</span>
+                              ) : (
+                                <span className="text-neutral-600 text-xs font-mono">{session.id.slice(0, 8)}…</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              {session.status === 'admin_takeover' ? (
+                                <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">Admin</span>
+                              ) : (
+                                <span className="bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">Active</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{session.message_count}</span>
+                            </td>
+                            <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={session.last_message || ''}>
+                              {session.last_message ? (
+                                <span className="text-xs">
+                                  <span className="text-neutral-500">{session.last_message_role === 'user' ? '👤' : session.last_message_role === 'admin' ? '🛡️' : '🤖'}</span>{' '}
+                                  {session.last_message}
+                                </span>
+                              ) : (
+                                <span className="text-neutral-600 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-neutral-300 max-w-[120px] truncate text-xs" title={session.page_url || ''}>
+                              {session.page_url || '—'}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-xs">
+                              {new Date(session.updated_at).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                        {(!chatSessions || chatSessions.length === 0) && (
+                          <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No chat sessions yet.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         )}
