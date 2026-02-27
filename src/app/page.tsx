@@ -303,7 +303,7 @@ export default function Dashboard() {
       if (document.hidden) return;
       try {
         const timestamp = new Date().getTime();
-        const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, {
+        const res = await fetch(`/api/stats-v2?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, {
           cache: 'no-store',
           headers: {
             'Pragma': 'no-cache',
@@ -545,7 +545,7 @@ export default function Dashboard() {
                             }
                             // Refresh data to show the new email
                             const timestamp = new Date().getTime();
-                            const res = await fetch(`/api/stats?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, { cache: 'no-store' });
+                            const res = await fetch(`/api/stats-v2?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, { cache: 'no-store' });
                             if (res.ok) setData(await res.json());
                           } catch (err) {
                             console.error(err);
