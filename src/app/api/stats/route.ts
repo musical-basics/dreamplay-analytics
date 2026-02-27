@@ -33,14 +33,13 @@ export async function GET(request: Request) {
             .from('analytics_logs')
             .select('id, created_at, event_name, path, ip_address, country, session_id, user_agent, metadata')
             .gt('created_at', startTime.toISOString())
-            .gt('created_at', startTime.toISOString())
-            .order('created_at', { ascending: false }) // Descending: Newest first to ensure we capture latest data
-            .limit(10000);
+            .order('created_at', { ascending: true })
+            .limit(50000);
 
         if (error) throw error;
 
-        // Reverse to chronological order (Oldest -> Newest) for Charts and Iteration logic
-        let safeLogs = (logs || []).reverse();
+        // Data is already in chronological order (Oldest -> Newest) for Charts and Iteration logic
+        let safeLogs = logs || [];
 
         // Filter Admin IP
         if (excludeAdmin) {
@@ -135,7 +134,7 @@ export async function GET(request: Request) {
 
         // E. Visitor Stats (Derived from safeLogs for consistency)
         // We take the last 1000 logs from the *current filtered view*
-        const recentLogs = [...safeLogs].reverse().slice(0, 1000);
+        const recentLogs = safeLogs.slice(-1000);
 
         // Pre-calculate email-to-IP mapping for ALL logs retrieved so far to catch older emails
         const ipToEmailMap = new Map<string, string>();
@@ -194,7 +193,7 @@ export async function GET(request: Request) {
             uniqueVisitors,
             uniquePages,
             chartData,
-            recentEvents: safeLogs.slice().reverse().slice(0, 50),
+            recentEvents: safeLogs.slice(-50).reverse(),
             abResults,
             visitorStats
         }, {
