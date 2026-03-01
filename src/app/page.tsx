@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
-  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X,
+  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X, Pencil,
   MessageCircle, Send
 } from 'lucide-react';
 import {
@@ -524,9 +524,17 @@ export default function Dashboard() {
                   <h2 className="font-semibold text-neutral-200 flex items-center gap-2 font-mono">
                     <Network className="w-4 h-4 text-blue-400" />
                     {selectedVisitorIp}
-                    {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email && (
-                      <span className="text-sm font-sans font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2">
+                    {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email && !attachingEmail && (
+                      <span
+                        className="text-sm font-sans font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2 cursor-pointer hover:bg-green-400/20 transition-colors flex items-center gap-1"
+                        onClick={() => {
+                          setEmailInput(data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email || '');
+                          setAttachingEmail(true);
+                        }}
+                        title="Click to edit email"
+                      >
                         {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email}
+                        <Pencil size={12} className="text-green-400/50" />
                       </span>
                     )}
                   </h2>
@@ -589,11 +597,14 @@ export default function Dashboard() {
                       </form>
                     ) : (
                       <button
-                        onClick={() => setAttachingEmail(true)}
+                        onClick={() => {
+                          setEmailInput(data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email || '');
+                          setAttachingEmail(true);
+                        }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 transition-colors"
                       >
                         <Mail size={14} />
-                        Attach Email
+                        {data?.visitorStats?.find(v => v.ip === selectedVisitorIp)?.email ? 'Edit Email' : 'Attach Email'}
                       </button>
                     )}
                   </div>
