@@ -112,6 +112,7 @@ export async function GET(request: Request) {
             device: string;
             email: string;
             purchased: boolean;
+            source?: string;
         }>();
 
         // Logs are newest-first, so first occurrence = most recent
@@ -119,6 +120,21 @@ export async function GET(request: Request) {
             const ip = log.ip_address || 'unknown';
             const email = ipToEmailMap.get(ip);
             if (!email) return; // safety check
+
+            // Parse traffic source from metadata
+            let entrySource: string | undefined = undefined;
+            if (log.metadata?.utm_source) {
+                entrySource = `${log.metadata.utm_source}${log.metadata.utm_medium ? ` / ${log.metadata.utm_medium}` : ''}`;
+            } else if (log.metadata?.referrer) {
+                try {
+                    const url = new URL(log.metadata.referrer);
+                    if (!url.hostname.includes('dreamplaypianos.com')) {
+                        entrySource = url.hostname.replace('www.', '');
+                    }
+                } catch {
+                    entrySource = log.metadata.referrer.substring(0, 30);
+                }
+            }
 
             if (!visitorMap.has(ip)) {
                 visitorMap.set(ip, {
@@ -130,7 +146,11 @@ export async function GET(request: Request) {
                     device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
                     email,
                     purchased: false,
+                    source: entrySource,
                 });
+            } else if (entrySource) {
+                // Logs are newest-first; keep overwriting so oldest source wins
+                visitorMap.get(ip)!.source = entrySource;
             }
 
             if (log.event_name === 'pageview') {

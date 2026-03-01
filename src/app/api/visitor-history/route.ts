@@ -82,6 +82,7 @@ export async function GET(request: Request) {
                 path: pv.path,
                 visited_at: pv.created_at,
                 duration_seconds: durationSeconds,
+                metadata: pv.metadata,
             };
         });
 

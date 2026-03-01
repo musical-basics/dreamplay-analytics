@@ -86,10 +86,25 @@ export async function GET(request: Request) {
         });
 
         // Build visitor map
-        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string }>();
+        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string }>();
 
         safeVisitorLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
+
+            // Parse traffic source from metadata
+            let entrySource: string | undefined = undefined;
+            if (log.metadata?.utm_source) {
+                entrySource = `${log.metadata.utm_source}${log.metadata.utm_medium ? ` / ${log.metadata.utm_medium}` : ''}`;
+            } else if (log.metadata?.referrer) {
+                try {
+                    const url = new URL(log.metadata.referrer);
+                    if (!url.hostname.includes('dreamplaypianos.com')) {
+                        entrySource = url.hostname.replace('www.', '');
+                    }
+                } catch {
+                    entrySource = log.metadata.referrer.substring(0, 30);
+                }
+            }
 
             if (!visitorMap.has(ip)) {
                 visitorMap.set(ip, {
@@ -99,8 +114,12 @@ export async function GET(request: Request) {
                     lastSeen: log.created_at,
                     country: log.country || 'Unknown',
                     device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
-                    email: ipToEmailMap.get(ip)
+                    email: ipToEmailMap.get(ip),
+                    source: entrySource
                 });
+            } else if (entrySource) {
+                // Logs are newest-first; keep overwriting so oldest source wins
+                visitorMap.get(ip)!.source = entrySource;
             }
 
             if (log.event_name === 'pageview') {

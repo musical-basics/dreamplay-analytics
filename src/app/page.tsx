@@ -22,12 +22,14 @@ interface AnalyticsEvent {
   country: string | null;
   session_id: string | null;
   user_agent: string | null;
+  metadata?: any;
 }
 
 interface VisitorHistoryVisit {
   path: string;
   visited_at: string;
   duration_seconds: number | null;
+  metadata?: any;
 }
 
 interface VisitorHistory {
@@ -51,7 +53,7 @@ interface DashboardData {
   }[];
   recentEvents: AnalyticsEvent[];
   abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
-  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string }[];
+  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string }[];
 }
 
 interface InsightsData {
@@ -132,7 +134,7 @@ export default function Dashboard() {
   const [attachingEmail, setAttachingEmail] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
-  const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string; purchased: boolean }[] | null>(null);
+  const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string; purchased: boolean; source?: string }[] | null>(null);
   const [emailVisitorsLoading, setEmailVisitorsLoading] = useState(false);
 
   // Event limits for visitors tabs
@@ -692,8 +694,8 @@ export default function Dashboard() {
                         key={n}
                         onClick={() => setVisitorLimit(n)}
                         className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${visitorLimit === n
-                            ? 'bg-blue-600 text-white'
-                            : 'text-neutral-400 hover:text-white hover:bg-neutral-700 bg-neutral-800'
+                          ? 'bg-blue-600 text-white'
+                          : 'text-neutral-400 hover:text-white hover:bg-neutral-700 bg-neutral-800'
                           }`}
                       >
                         {(n / 1000)}K
@@ -706,6 +708,7 @@ export default function Dashboard() {
                     <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                       <tr>
                         <th className="px-6 py-3">IP Address</th>
+                        <th className="px-6 py-3">Source</th>
                         <th className="px-6 py-3">Email (if found)</th>
                         <th className="px-6 py-3">Country</th>
                         <th className="px-6 py-3">Page Hits</th>
@@ -721,6 +724,15 @@ export default function Dashboard() {
                           className="hover:bg-white/5 transition-colors cursor-pointer group"
                         >
                           <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {visitor.source ? (
+                              <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
+                                {visitor.source}
+                              </span>
+                            ) : (
+                              <span className="text-neutral-600 text-xs">—</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {visitor.email ? (
                               <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{visitor.email}</span>
@@ -743,7 +755,7 @@ export default function Dashboard() {
                         </tr>
                       ))}
                       {(!data?.visitorStats || data.visitorStats.length === 0) && (
-                        <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                        <tr><td colSpan={7} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -876,8 +888,8 @@ export default function Dashboard() {
                         key={n}
                         onClick={() => setEmailVisitorLimit(n)}
                         className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${emailVisitorLimit === n
-                            ? 'bg-green-600 text-white'
-                            : 'text-neutral-400 hover:text-white hover:bg-neutral-700 bg-neutral-800'
+                          ? 'bg-green-600 text-white'
+                          : 'text-neutral-400 hover:text-white hover:bg-neutral-700 bg-neutral-800'
                           }`}
                       >
                         {(n / 1000)}K
@@ -896,6 +908,7 @@ export default function Dashboard() {
                       <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                         <tr>
                           <th className="px-6 py-3">Email</th>
+                          <th className="px-6 py-3">Source</th>
                           <th className="px-6 py-3">IP Address</th>
                           <th className="px-6 py-3">Country</th>
                           <th className="px-6 py-3">Page Hits</th>
@@ -916,6 +929,15 @@ export default function Dashboard() {
                                 <span className="ml-2 bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">Purchased</span>
                               )}
                             </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {visitor.source ? (
+                                <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
+                                  {visitor.source}
+                                </span>
+                              ) : (
+                                <span className="text-neutral-600 text-xs">—</span>
+                              )}
+                            </td>
                             <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
                             <td className="px-6 py-4 flex items-center gap-2">
                               <Globe size={12} /> {visitor.country}
@@ -932,7 +954,7 @@ export default function Dashboard() {
                           </tr>
                         ))}
                         {(!emailVisitorsData || emailVisitorsData.length === 0) && (
-                          <tr><td colSpan={6} className="px-6 py-8 text-center text-neutral-500">No email visitors found.</td></tr>
+                          <tr><td colSpan={7} className="px-6 py-8 text-center text-neutral-500">No email visitors found.</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -1359,6 +1381,16 @@ export default function Dashboard() {
                       <span className="flex items-center gap-1"><Globe size={10} /> {event.country || 'Unknown'}</span>
                       <span className="flex items-center gap-1" title={event.user_agent || 'Unknown UA'}><Smartphone size={10} /> {event.user_agent?.includes('Mac') ? 'Mac' : 'Device'}</span>
                       <span className="opacity-50">{event.ip_address}</span>
+                      {event.metadata?.utm_source && (
+                        <span className="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20 text-[10px]">
+                          {event.metadata.utm_source}{event.metadata.utm_medium ? ` / ${event.metadata.utm_medium}` : ''}
+                        </span>
+                      )}
+                      {event.metadata?.referrer && (
+                        <span className="bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] truncate max-w-[150px]" title={event.metadata.referrer}>
+                          Ref: {(() => { try { return new URL(event.metadata.referrer).hostname.replace('www.', '') } catch { return event.metadata.referrer.substring(0, 30) } })()}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-xs text-neutral-500 whitespace-nowrap">

@@ -42,9 +42,27 @@
     }
     var userEmail = getCookie('dp_user_email');
 
-    // Use the production data subdomain 
-    // IMPORTANT: For local testing, this might fail to track if not deployed.
-    // But reqs say "Use the full production URL placeholder".
+    // --- CAPTURE UTMS & REFERRER ---
+    var currentUtms = {};
+    try {
+        var utms = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content'];
+        utms.forEach(function (utm) {
+            var val = getQueryParam(utm);
+            if (val) sessionStorage.setItem('dp_' + utm, val);
+            var stored = sessionStorage.getItem('dp_' + utm);
+            if (stored) currentUtms[utm] = stored;
+        });
+
+        var referrer = document.referrer;
+        if (referrer && referrer.indexOf(window.location.hostname) === -1 && referrer.indexOf('localhost') === -1) {
+            if (!sessionStorage.getItem('dp_initial_referrer')) {
+                sessionStorage.setItem('dp_initial_referrer', referrer);
+            }
+        }
+    } catch (e) { }
+    var initialReferrer = null;
+    try { initialReferrer = sessionStorage.getItem('dp_initial_referrer'); } catch (e) { }
+
     const ENDPOINT = 'https://data.dreamplaypianos.com/api/track';
 
     // NOTE: If testing locally (localhost dashboard), it won't receive events unless the script points to localhost 
@@ -58,6 +76,12 @@
         if (userEmail && !metadata.email) {
             metadata.email = userEmail;
         }
+
+        // Attach UTMs and referrer
+        try {
+            Object.assign(metadata, currentUtms);
+            if (initialReferrer) metadata.referrer = initialReferrer;
+        } catch (e) { }
 
         const payload = {
             eventName: eventName,
