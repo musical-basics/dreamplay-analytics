@@ -22,14 +22,14 @@ interface AnalyticsEvent {
   country: string | null;
   session_id: string | null;
   user_agent: string | null;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface VisitorHistoryVisit {
   path: string;
   visited_at: string;
   duration_seconds: number | null;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 interface VisitorHistory {
@@ -1381,14 +1381,14 @@ export default function Dashboard() {
                       <span className="flex items-center gap-1"><Globe size={10} /> {event.country || 'Unknown'}</span>
                       <span className="flex items-center gap-1" title={event.user_agent || 'Unknown UA'}><Smartphone size={10} /> {event.user_agent?.includes('Mac') ? 'Mac' : 'Device'}</span>
                       <span className="opacity-50">{event.ip_address}</span>
-                      {event.metadata?.utm_source && (
+                      {!!event.metadata?.utm_source && (
                         <span className="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20 text-[10px]">
-                          {event.metadata.utm_source}{event.metadata.utm_medium ? ` / ${event.metadata.utm_medium}` : ''}
+                          {String(event.metadata.utm_source)}{event.metadata.utm_medium ? ` / ${String(event.metadata.utm_medium)}` : ''}
                         </span>
                       )}
-                      {event.metadata?.referrer && (
-                        <span className="bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] truncate max-w-[150px]" title={event.metadata.referrer}>
-                          Ref: {(() => { try { return new URL(event.metadata.referrer).hostname.replace('www.', '') } catch { return event.metadata.referrer.substring(0, 30) } })()}
+                      {!!event.metadata?.referrer && (
+                        <span className="bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] truncate max-w-[150px]" title={String(event.metadata.referrer)}>
+                          Ref: {(() => { try { return new URL(String(event.metadata.referrer)).hostname.replace('www.', '') } catch { return String(event.metadata.referrer).substring(0, 30) } })()}
                         </span>
                       )}
                     </div>
