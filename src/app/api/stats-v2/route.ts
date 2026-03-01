@@ -17,6 +17,7 @@ export async function GET(request: Request) {
     const range = searchParams.get('range') || '7d';
     const excludeAdmin = searchParams.get('exclude_admin') === 'true';
     const excludeBots = searchParams.get('exclude_bots') === 'true';
+    const visitorLimit = Math.min(parseInt(searchParams.get('visitor_limit') || '1000', 10) || 1000, 5000);
 
     try {
         // 1. Call the RPC function for aggregated summary (tiny response ~2KB)
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
             .from('analytics_logs')
             .select('created_at, event_name, path, ip_address, country, user_agent, metadata')
             .order('created_at', { ascending: false })
-            .limit(1000);
+            .limit(visitorLimit);
 
         if (excludeAdmin) {
             const { ADMIN_IPS } = await import('@/lib/adminIPs');

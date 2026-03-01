@@ -29,6 +29,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const excludeAdmin = searchParams.get('exclude_admin') === 'true';
     const excludeBots = searchParams.get('exclude_bots') === 'true';
+    const limit = Math.min(parseInt(searchParams.get('limit') || '1000', 10) || 1000, 5000);
 
     try {
         // 1. Gather ALL IPs that have an associated email
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
             .select('id, created_at, event_name, path, ip_address, country, session_id, user_agent, metadata')
             .in('ip_address', emailIPs)
             .order('created_at', { ascending: false })
-            .limit(1000);
+            .limit(limit);
 
         if (error) throw error;
 

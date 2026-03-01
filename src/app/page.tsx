@@ -135,6 +135,10 @@ export default function Dashboard() {
   const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string; purchased: boolean }[] | null>(null);
   const [emailVisitorsLoading, setEmailVisitorsLoading] = useState(false);
 
+  // Event limits for visitors tabs
+  const [visitorLimit, setVisitorLimit] = useState(1000);
+  const [emailVisitorLimit, setEmailVisitorLimit] = useState(1000);
+
   // Chat state
   const [chatSessions, setChatSessions] = useState<ChatSession[] | null>(null);
   const [chatSessionsLoading, setChatSessionsLoading] = useState(false);
@@ -204,7 +208,7 @@ export default function Dashboard() {
       setEmailVisitorsLoading(true);
       try {
         const res = await fetch(
-          `/api/email-visitors?exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${Date.now()}`,
+          `/api/email-visitors?exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&limit=${emailVisitorLimit}&_t=${Date.now()}`,
           { cache: 'no-store' }
         );
         if (res.ok && !cancelled) {
@@ -219,7 +223,7 @@ export default function Dashboard() {
     }
     fetchEmailVisitors();
     return () => { cancelled = true; };
-  }, [activeTab, filterAdmin, filterBots]);
+  }, [activeTab, filterAdmin, filterBots, emailVisitorLimit]);
 
   // Fetch chat sessions when chats tab is active
   useEffect(() => {
@@ -303,7 +307,7 @@ export default function Dashboard() {
       if (document.hidden) return;
       try {
         const timestamp = new Date().getTime();
-        const res = await fetch(`/api/stats-v2?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&_t=${timestamp}`, {
+        const res = await fetch(`/api/stats-v2?range=${range}&exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&visitor_limit=${visitorLimit}&_t=${timestamp}`, {
           cache: 'no-store',
           headers: {
             'Pragma': 'no-cache',
@@ -333,7 +337,7 @@ export default function Dashboard() {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [range, filterAdmin, filterBots]);
+  }, [range, filterAdmin, filterBots, visitorLimit]);
 
   const getChartTitle = () => {
     switch (activeMetric) {
@@ -680,8 +684,22 @@ export default function Dashboard() {
               <div className="bg-neutral-800 rounded-xl border border-neutral-700 overflow-hidden">
                 <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
                   <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
-                    <Network className="w-4 h-4 text-blue-400" /> Recent Visitors (Last 1000 Events)
+                    <Network className="w-4 h-4 text-blue-400" /> Recent Visitors (Last {visitorLimit.toLocaleString()} Events)
                   </h2>
+                  <div className="flex items-center gap-1">
+                    {[1000, 2000, 3000].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setVisitorLimit(n)}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${visitorLimit === n
+                            ? 'bg-blue-600 text-white'
+                            : 'text-neutral-400 hover:text-white hover:bg-neutral-700 bg-neutral-800'
+                          }`}
+                      >
+                        {(n / 1000)}K
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm text-neutral-400">
@@ -850,8 +868,22 @@ export default function Dashboard() {
                 <div className="p-4 border-b border-neutral-700 bg-neutral-800/80 backdrop-blur flex justify-between items-center">
                   <h2 className="font-semibold text-neutral-200 flex items-center gap-2">
                     <Mail className="w-4 h-4 text-green-400" />
-                    Email Visitors (Last 1000 Events)
+                    Email Visitors (Last {emailVisitorLimit.toLocaleString()} Events)
                   </h2>
+                  <div className="flex items-center gap-1">
+                    {[1000, 2000, 3000].map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setEmailVisitorLimit(n)}
+                        className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${emailVisitorLimit === n
+                            ? 'bg-green-600 text-white'
+                            : 'text-neutral-400 hover:text-white hover:bg-neutral-700 bg-neutral-800'
+                          }`}
+                      >
+                        {(n / 1000)}K
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 {emailVisitorsLoading ? (
                   <div className="flex items-center justify-center py-20 text-neutral-400 gap-2">
