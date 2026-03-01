@@ -36,9 +36,24 @@
         } catch (e) { return null; }
     }
 
-    var emailParam = getQueryParam('em');
-    if (emailParam) {
-        setCookie('dp_user_email', emailParam, 365);
+    // --- RESOLVE EMAIL FROM SID (server-side, replaces ?em= which was spoofable) ---
+    var sidParam = getQueryParam('sid');
+    var cidParam = getQueryParam('cid');
+    if (sidParam && !sessionStorage.getItem('dp_sid_resolved')) {
+        sessionStorage.setItem('dp_sid_resolved', '1');
+        try {
+            var resolveUrl = 'https://email.dreamplaypianos.com/api/resolve-subscriber?sid=' + sidParam;
+            if (cidParam) resolveUrl += '&cid=' + cidParam;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', resolveUrl, true);
+            xhr.onload = function () {
+                try {
+                    var data = JSON.parse(xhr.responseText);
+                    if (data.email) setCookie('dp_user_email', data.email, 365);
+                } catch (e) { }
+            };
+            xhr.send();
+        } catch (e) { }
     }
     var userEmail = getCookie('dp_user_email');
 
