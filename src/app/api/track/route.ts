@@ -68,7 +68,10 @@ export async function POST(request: Request) {
         // Truncate path to avoid database errors if URL is too long
         const safePath = path ? path.substring(0, 2000) : path;
 
-        const ip_address = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown';
+        const forwardedFor = request.headers.get('x-forwarded-for');
+        const ip_address = forwardedFor
+            ? forwardedFor.split(',')[0].trim()
+            : request.headers.get('x-real-ip') || 'unknown';
         const user_agent = request.headers.get('user-agent');
         const country = request.headers.get('x-vercel-ip-country');
 
