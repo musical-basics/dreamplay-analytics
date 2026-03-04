@@ -86,13 +86,14 @@ export async function GET(request: Request) {
         });
 
         // Build visitor map
-        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string }>();
+        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string, sourceUrl?: string }>();
 
         safeVisitorLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
 
             // Parse traffic source from metadata
             let entrySource: string | undefined = undefined;
+            let entrySourceUrl: string | undefined = undefined;
             if (log.metadata?.utm_source) {
                 entrySource = `${log.metadata.utm_source}${log.metadata.utm_medium ? ` / ${log.metadata.utm_medium}` : ''}`;
             } else if (log.metadata?.referrer) {
@@ -100,6 +101,7 @@ export async function GET(request: Request) {
                     const url = new URL(log.metadata.referrer);
                     if (!url.hostname.includes('dreamplaypianos.com')) {
                         entrySource = url.hostname.replace('www.', '');
+                        entrySourceUrl = log.metadata.referrer;
                     }
                 } catch {
                     entrySource = log.metadata.referrer.substring(0, 30);
@@ -115,11 +117,13 @@ export async function GET(request: Request) {
                     country: log.country || 'Unknown',
                     device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
                     email: ipToEmailMap.get(ip),
-                    source: entrySource
+                    source: entrySource,
+                    sourceUrl: entrySourceUrl
                 });
             } else if (entrySource) {
                 // Logs are newest-first; keep overwriting so oldest source wins
                 visitorMap.get(ip)!.source = entrySource;
+                if (entrySourceUrl) visitorMap.get(ip)!.sourceUrl = entrySourceUrl;
             }
 
             if (log.event_name === 'pageview') {

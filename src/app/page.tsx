@@ -53,7 +53,7 @@ interface DashboardData {
   }[];
   recentEvents: AnalyticsEvent[];
   abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
-  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string }[];
+  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string; sourceUrl?: string }[];
 }
 
 interface InsightsData {
@@ -134,7 +134,7 @@ export default function Dashboard() {
   const [attachingEmail, setAttachingEmail] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [emailSaving, setEmailSaving] = useState(false);
-  const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string; purchased: boolean; source?: string }[] | null>(null);
+  const [emailVisitorsData, setEmailVisitorsData] = useState<{ ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email: string; purchased: boolean; source?: string; sourceUrl?: string }[] | null>(null);
   const [emailVisitorsLoading, setEmailVisitorsLoading] = useState(false);
 
   // Event limits for visitors tabs
@@ -737,9 +737,16 @@ export default function Dashboard() {
                           <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             {visitor.source ? (
-                              <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
-                                {visitor.source}
-                              </span>
+                              visitor.sourceUrl ? (
+                                <a href={visitor.sourceUrl} target="_blank" rel="noopener noreferrer" title={visitor.sourceUrl} onClick={(e) => e.stopPropagation()} className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium hover:bg-purple-500/20 hover:text-purple-300 transition-colors inline-flex items-center gap-1">
+                                  {visitor.source}
+                                  <ExternalLink size={10} className="opacity-50" />
+                                </a>
+                              ) : (
+                                <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
+                                  {visitor.source}
+                                </span>
+                              )
                             ) : (
                               <span className="text-neutral-600 text-xs">—</span>
                             )}
@@ -942,9 +949,16 @@ export default function Dashboard() {
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {visitor.source ? (
-                                <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
-                                  {visitor.source}
-                                </span>
+                                visitor.sourceUrl ? (
+                                  <a href={visitor.sourceUrl} target="_blank" rel="noopener noreferrer" title={visitor.sourceUrl} onClick={(e) => e.stopPropagation()} className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium hover:bg-purple-500/20 hover:text-purple-300 transition-colors inline-flex items-center gap-1">
+                                    {visitor.source}
+                                    <ExternalLink size={10} className="opacity-50" />
+                                  </a>
+                                ) : (
+                                  <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
+                                    {visitor.source}
+                                  </span>
+                                )
                               ) : (
                                 <span className="text-neutral-600 text-xs">—</span>
                               )}
