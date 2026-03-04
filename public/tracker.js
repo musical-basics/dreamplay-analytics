@@ -37,10 +37,21 @@
     }
 
     // --- RESOLVE EMAIL FROM SID (server-side, replaces ?em= which was spoofable) ---
+    // Uses a callback to defer pageview until email is resolved (or timeout).
     var sidParam = getQueryParam('sid');
     var cidParam = getQueryParam('cid');
-    if (sidParam && !sessionStorage.getItem('dp_sid_resolved')) {
+    var needsResolve = sidParam && !sessionStorage.getItem('dp_sid_resolved');
+
+    function resolveAndStart(onDone) {
+        if (!needsResolve) { onDone(); return; }
         sessionStorage.setItem('dp_sid_resolved', '1');
+        var resolved = false;
+        function finish() { if (!resolved) { resolved = true; onDone(); } }
+        // Timeout: don't block pageview for more than 2 seconds
+        var timer = setTimeout(function () {
+            console.warn('[Dreamplay Analytics] SID resolve timed out, sending pageview without email');
+            finish();
+        }, 2000);
         try {
             var resolveUrl = 'https://email.dreamplaypianos.com/api/resolve-subscriber?sid=' + sidParam;
             if (cidParam) resolveUrl += '&cid=' + cidParam;
@@ -51,11 +62,13 @@
                     var data = JSON.parse(xhr.responseText);
                     if (data.email) setCookie('dp_user_email', data.email, 365);
                 } catch (e) { }
+                clearTimeout(timer);
+                finish();
             };
+            xhr.onerror = function () { clearTimeout(timer); finish(); };
             xhr.send();
-        } catch (e) { }
+        } catch (e) { clearTimeout(timer); finish(); }
     }
-    var userEmail = getCookie('dp_user_email');
 
     // --- CAPTURE UTMS & REFERRER ---
     var currentUtms = {};
@@ -80,14 +93,9 @@
 
     const ENDPOINT = 'https://data.dreamplaypianos.com/api/track';
 
-    // NOTE: If testing locally (localhost dashboard), it won't receive events unless the script points to localhost 
-    // OR if you deploy this app to data.dreamplaypianos.com. 
-    // User said "I need to... visit ... and watch the counter go up".
-    // This implies the dashboard is observing the REAL DB. 
-    // So if I run the dashboard LOCALLY, and visit the REAL site, I see numbers. 
-    // This script is for the deployed sites.
-
     function sendEvent(eventName, metadata = {}) {
+        // Read email fresh each time (cookie may have been set after page load by SID resolve)
+        var userEmail = getCookie('dp_user_email');
         if (userEmail && !metadata.email) {
             metadata.email = userEmail;
         }
@@ -127,11 +135,18 @@
     window.dreamplay = window.dreamplay || {};
     window.dreamplay.track = sendEvent;
 
+    // Defer pageview until SID resolution completes (or 2s timeout)
+    function firePageview() {
+        resolveAndStart(function () {
+            sendEvent('pageview');
+        });
+    }
+
     if (document.readyState === 'complete') {
-        sendEvent('pageview');
+        firePageview();
     } else {
         window.addEventListener('load', function () {
-            sendEvent('pageview');
+            firePageview();
         });
     }
 
