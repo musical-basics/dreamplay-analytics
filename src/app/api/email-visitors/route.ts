@@ -171,14 +171,21 @@ export async function GET(request: Request) {
                 if (uniqueEmails.length > 0) {
                     const { data: subscribers } = await emailSupabase
                         .from('subscribers')
-                        .select('email, tags')
+                        .select('id, email, tags')
                         .in('email', uniqueEmails);
 
                     if (subscribers) {
                         const purchasedEmails = new Set<string>();
-                        subscribers.forEach((sub: { email: string; tags: string[] | null }) => {
+                        const subscribersToTag: { id: string; tags: string[] }[] = [];
+
+                        subscribers.forEach((sub: { id: string; email: string; tags: string[] | null }) => {
                             if (sub.tags && sub.tags.includes('Purchased')) {
                                 purchasedEmails.add(sub.email);
+                            }
+                            // If subscriber doesn't already have the tag, queue them for tagging
+                            const currentTags = sub.tags || [];
+                            if (!currentTags.includes('IP Email Connected')) {
+                                subscribersToTag.push({ id: sub.id, tags: [...currentTags, 'IP Email Connected'] });
                             }
                         });
 
@@ -188,6 +195,18 @@ export async function GET(request: Request) {
                                 visitor.purchased = true;
                             }
                         });
+
+                        // Apply "IP Email Connected" tag to subscribers who don't have it yet
+                        if (subscribersToTag.length > 0) {
+                            const tagPromises = subscribersToTag.map(sub =>
+                                emailSupabase
+                                    .from('subscribers')
+                                    .update({ tags: sub.tags })
+                                    .eq('id', sub.id)
+                            );
+                            await Promise.all(tagPromises);
+                            console.log(`[Email Visitors API] Tagged ${subscribersToTag.length} subscriber(s) with "IP Email Connected"`);
+                        }
                     }
                 }
             } catch (emailErr) {
