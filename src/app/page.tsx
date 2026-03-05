@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
-  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X, Pencil,
+  ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X, Pencil, Trash2,
   MessageCircle, Send
 } from 'lucide-react';
 import {
@@ -802,12 +802,137 @@ export default function Dashboard() {
                   <h2 className="font-semibold text-neutral-200 flex items-center gap-2 font-mono">
                     <Network className="w-4 h-4 text-blue-400" />
                     {selectedVisitorIp}
-                    {emailVisitorsData?.find(v => v.ip === selectedVisitorIp)?.email && (
-                      <span className="text-sm font-sans font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2">
+                    {emailVisitorsData?.find(v => v.ip === selectedVisitorIp)?.email && !attachingEmail && (
+                      <span
+                        className="text-sm font-sans font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded ml-2 cursor-pointer hover:bg-green-400/20 transition-colors flex items-center gap-1"
+                        onClick={() => {
+                          setEmailInput(emailVisitorsData?.find(v => v.ip === selectedVisitorIp)?.email || '');
+                          setAttachingEmail(true);
+                        }}
+                        title="Click to edit email"
+                      >
                         {emailVisitorsData?.find(v => v.ip === selectedVisitorIp)?.email}
+                        <Pencil size={12} className="text-green-400/50" />
                       </span>
                     )}
                   </h2>
+                  <div className="ml-auto flex items-center gap-2">
+                    {attachingEmail ? (
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          if (!emailInput.trim() || !selectedVisitorIp) return;
+                          setEmailSaving(true);
+                          try {
+                            const postRes = await fetch('/api/ip-email', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ ip: selectedVisitorIp, email: emailInput.trim() }),
+                            });
+                            const postData = await postRes.json();
+                            if (!postRes.ok) {
+                              alert(`Failed to save: ${postData.error || postRes.statusText}`);
+                              setEmailSaving(false);
+                              return;
+                            }
+                            // Refresh email visitors data
+                            const timestamp = new Date().getTime();
+                            const res = await fetch(
+                              `/api/email-visitors?exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&limit=${emailVisitorLimit}&_t=${timestamp}`,
+                              { cache: 'no-store' }
+                            );
+                            if (res.ok) {
+                              const json = await res.json();
+                              setEmailVisitorsData(json.emailVisitorStats);
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert(`Network error: ${err}`);
+                          } finally {
+                            setEmailSaving(false);
+                            setAttachingEmail(false);
+                            setEmailInput('');
+                          }
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <input
+                          type="email"
+                          value={emailInput}
+                          onChange={(e) => setEmailInput(e.target.value)}
+                          placeholder="user@example.com"
+                          autoFocus
+                          className="bg-neutral-900 border border-neutral-600 rounded-md px-3 py-1.5 text-sm text-white placeholder-neutral-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 w-56"
+                        />
+                        <button
+                          type="submit"
+                          disabled={emailSaving || !emailInput.trim()}
+                          className="p-1.5 rounded-md bg-green-600 hover:bg-green-500 text-white disabled:opacity-50 transition-colors"
+                        >
+                          {emailSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setAttachingEmail(false); setEmailInput(''); }}
+                          className="p-1.5 rounded-md bg-neutral-700 hover:bg-neutral-600 text-neutral-300 transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </form>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEmailInput(emailVisitorsData?.find(v => v.ip === selectedVisitorIp)?.email || '');
+                            setAttachingEmail(true);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30 hover:bg-blue-600/30 transition-colors"
+                        >
+                          <Pencil size={14} />
+                          Edit Email
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!selectedVisitorIp) return;
+                            if (!confirm(`Remove email mapping for IP ${selectedVisitorIp}?`)) return;
+                            setEmailSaving(true);
+                            try {
+                              const res = await fetch('/api/ip-email', {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ip: selectedVisitorIp }),
+                              });
+                              if (!res.ok) {
+                                const d = await res.json();
+                                alert(`Failed to remove: ${d.error || res.statusText}`);
+                                return;
+                              }
+                              // Refresh email visitors data and go back to list
+                              const timestamp = new Date().getTime();
+                              const fetchRes = await fetch(
+                                `/api/email-visitors?exclude_admin=${filterAdmin}&exclude_bots=${filterBots}&limit=${emailVisitorLimit}&_t=${timestamp}`,
+                                { cache: 'no-store' }
+                              );
+                              if (fetchRes.ok) {
+                                const json = await fetchRes.json();
+                                setEmailVisitorsData(json.emailVisitorStats);
+                              }
+                              setSelectedVisitorIp(null);
+                            } catch (err) {
+                              console.error(err);
+                              alert(`Network error: ${err}`);
+                            } finally {
+                              setEmailSaving(false);
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-red-600/20 text-red-400 border border-red-500/30 hover:bg-red-600/30 transition-colors"
+                        >
+                          <Trash2 size={14} />
+                          Remove
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {historyLoading ? (

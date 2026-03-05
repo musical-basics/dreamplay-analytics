@@ -62,3 +62,26 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Failed to save mapping' }, { status: 500, headers: noCacheHeaders });
     }
 }
+
+// DELETE — remove a manual IP→email mapping
+export async function DELETE(request: Request) {
+    try {
+        const { ip } = await request.json();
+
+        if (!ip) {
+            return NextResponse.json({ error: 'Missing ip' }, { status: 400, headers: noCacheHeaders });
+        }
+
+        const { error } = await supabase
+            .from('ip_email_map')
+            .delete()
+            .eq('ip_address', ip);
+
+        if (error) throw error;
+
+        return NextResponse.json({ success: true }, { headers: noCacheHeaders });
+    } catch (error) {
+        console.error('[IP-Email API] DELETE error:', error);
+        return NextResponse.json({ error: 'Failed to delete mapping' }, { status: 500, headers: noCacheHeaders });
+    }
+}
