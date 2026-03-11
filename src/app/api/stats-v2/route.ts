@@ -164,7 +164,7 @@ export async function GET(request: Request) {
             .not('metadata->checkout_source', 'is', null);
 
         const purchaseCounts = new Map<string, number>();
-        (purchaseEvents || []).forEach((evt: any) => {
+        (purchaseEvents || []).forEach((evt: { metadata?: { checkout_source?: string } }) => {
             const source = evt.metadata?.checkout_source;
             if (source) {
                 // Map "pdp" -> "checkout", keep "customize" as is
