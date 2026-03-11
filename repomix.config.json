@@ -1,6 +1,6 @@
 {
     "output": {
-        "filePath": "repomix-output.xml",
+        "filePath": "../dreamplay-analytics-repomix.xml",
         "style": "xml",
         "headerText": "DreamPlay Analytics Codebase"
     },

@@ -143,7 +143,51 @@ export async function GET(request: Request) {
             visitorStats = visitorStats.filter(v => !isSuspectedBot(v.ip, v.count));
         }
 
-        // 4. Return same JSON shape as /api/stats
+        // 4. Compute Checkout A/B Test Results from analytics_logs
+        // Visitors: count distinct IPs with checkout_ab metadata
+        const checkoutAbVisitors = new Map<string, Set<string>>();
+        safeVisitorLogs.forEach(log => {
+            const abBucket = log.metadata?.checkout_ab;
+            if (abBucket && log.ip_address) {
+                if (!checkoutAbVisitors.has(abBucket)) {
+                    checkoutAbVisitors.set(abBucket, new Set());
+                }
+                checkoutAbVisitors.get(abBucket)!.add(log.ip_address);
+            }
+        });
+
+        // Purchases: query purchase events with checkout_source
+        const { data: purchaseEvents } = await supabase
+            .from('analytics_logs')
+            .select('metadata')
+            .eq('event_name', 'purchase')
+            .not('metadata->checkout_source', 'is', null);
+
+        const purchaseCounts = new Map<string, number>();
+        (purchaseEvents || []).forEach((evt: any) => {
+            const source = evt.metadata?.checkout_source;
+            if (source) {
+                // Map "pdp" -> "checkout", keep "customize" as is
+                const bucket = source === 'pdp' ? 'checkout' : source;
+                purchaseCounts.set(bucket, (purchaseCounts.get(bucket) || 0) + 1);
+            }
+        });
+
+        // Build abResults array
+        const abResults = ['checkout', 'customize'].map(variant => {
+            const visitors = checkoutAbVisitors.get(variant)?.size || 0;
+            const conversions = purchaseCounts.get(variant) || 0;
+            const conversionRate = visitors > 0 ? ((conversions / visitors) * 100).toFixed(2) : '0.00';
+            return {
+                variant,
+                label: variant === 'checkout' ? 'PDP (Product Detail Page)' : 'Customize Wizard',
+                visitors,
+                conversions,
+                conversion_rate: conversionRate,
+            };
+        });
+
+        // 5. Return same JSON shape as /api/stats
         return NextResponse.json({
             liveUsers: summary.live_users,
             totalPageviews: summary.total_pageviews,
@@ -151,7 +195,7 @@ export async function GET(request: Request) {
             uniquePages: summary.unique_pages,
             chartData: summary.chart_data,
             recentEvents: recentEvents || [],
-            abResults: summary.ab_results,
+            abResults,
             visitorStats
         }, {
             headers: {

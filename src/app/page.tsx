@@ -52,7 +52,7 @@ interface DashboardData {
     avg_per_user: number;
   }[];
   recentEvents: AnalyticsEvent[];
-  abResults: { variant: string; visitors: number; conversions: number; conversion_rate: number }[];
+  abResults: { variant: string; label?: string; visitors: number; conversions: number; conversion_rate: number }[];
   visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string; sourceUrl?: string }[];
 }
 
@@ -1265,41 +1265,50 @@ export default function Dashboard() {
 
         {/* --- TAB CONTENT: A/B TESTS --- */}
         {activeTab === 'ab' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in">
-            {data.abResults.length === 0 ? (
-              <div className="col-span-2 text-center py-20 text-neutral-500">No A/B tests recorded yet.</div>
-            ) : (
-              data.abResults.map((variant) => (
-                <div key={variant.variant} className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-xl font-bold capitalize text-white">{variant.variant}</h3>
-                    <span className="text-xs font-mono bg-neutral-900 px-2 py-1 rounded text-neutral-400">ID: {variant.variant}</span>
-                  </div>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
-                      <span className="text-sm text-neutral-400">Visitors</span>
-                      <span className="font-mono font-bold">{variant.visitors}</span>
+          <div className="space-y-6 animate-in fade-in">
+            <div className="bg-neutral-800/50 rounded-xl border border-neutral-700 p-4">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <FlaskConical className="w-5 h-5 text-blue-400" />
+                Checkout A/B Test
+              </h3>
+              <p className="text-sm text-neutral-400 mt-1">Deterministic round-robin: PDP (Product Detail Page) vs Customize Wizard</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {data.abResults.length === 0 ? (
+                <div className="col-span-2 text-center py-20 text-neutral-500">No A/B tests recorded yet.</div>
+              ) : (
+                data.abResults.map((variant) => (
+                  <div key={variant.variant} className="bg-neutral-800 p-6 rounded-xl border border-neutral-700">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-bold capitalize text-white">{variant.label || variant.variant}</h3>
+                      <span className="text-xs font-mono bg-neutral-900 px-2 py-1 rounded text-neutral-400">/{variant.variant}</span>
                     </div>
-                    <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
-                      <span className="text-sm text-neutral-400">Conversions</span>
-                      <span className="font-mono font-bold text-green-400">{variant.conversions}</span>
-                    </div>
-                    <div className="mt-4">
-                      <div className="flex justify-between text-xs mb-1">
-                        <span>Conversion Rate</span>
-                        <span className="font-bold">{variant.conversion_rate}%</span>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
+                        <span className="text-sm text-neutral-400">Visitors</span>
+                        <span className="font-mono font-bold">{variant.visitors}</span>
                       </div>
-                      <div className="w-full bg-neutral-700 rounded-full h-2">
-                        <div
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                          style={{ width: `${Math.min(Number(variant.conversion_rate), 100)}%` }}
-                        />
+                      <div className="flex justify-between items-center p-3 bg-neutral-900/50 rounded-lg">
+                        <span className="text-sm text-neutral-400">Conversions</span>
+                        <span className="font-mono font-bold text-green-400">{variant.conversions}</span>
+                      </div>
+                      <div className="mt-4">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span>Conversion Rate</span>
+                          <span className="font-bold">{variant.conversion_rate}%</span>
+                        </div>
+                        <div className="w-full bg-neutral-700 rounded-full h-2">
+                          <div
+                            className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(Number(variant.conversion_rate), 100)}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
         )}
 
