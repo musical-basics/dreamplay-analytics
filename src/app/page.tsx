@@ -6,7 +6,7 @@ import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
   ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X, Pencil, Trash2,
-  MessageCircle, Send, MapPin
+  MessageCircle, Send, MapPin, Download
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -128,7 +128,10 @@ export default function Dashboard() {
   const [range, setRange] = useState('7d');
   const [filterAdmin, setFilterAdmin] = useState(true); // Default to Admin Hidden
   const [filterBots, setFilterBots] = useState(true); // Default to Bots Hidden
-  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'emailVisitors' | 'insights' | 'chats'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'ab' | 'logs' | 'visitors' | 'emailVisitors' | 'insights' | 'chats' | 'exports'>('overview');
+  const [exportRange, setExportRange] = useState('7d');
+  const [exportData, setExportData] = useState<Record<string, string | number>[] | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
   const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
   const [visitorHistory, setVisitorHistory] = useState<VisitorHistory | null>(null);
@@ -435,6 +438,7 @@ export default function Dashboard() {
           <TabButton active={activeTab === 'ab'} onClick={() => setActiveTab('ab')} icon={<FlaskConical size={16} />} label="A/B Tests" />
           <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<TableProperties size={16} />} label="Raw Logs" />
           <TabButton active={activeTab === 'chats'} onClick={() => { setActiveTab('chats'); setSelectedChatId(null); }} icon={<MessageCircle size={16} />} label="Chats" />
+          <TabButton active={activeTab === 'exports'} onClick={() => setActiveTab('exports')} icon={<Download size={16} />} label="Exports" />
         </div>
 
         {/* --- TAB CONTENT: OVERVIEW --- */}
@@ -1598,6 +1602,149 @@ export default function Dashboard() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB CONTENT: EXPORTS --- */}
+        {activeTab === 'exports' && (
+          <div className="animate-in fade-in space-y-6">
+            <div className="bg-neutral-800 rounded-xl border border-neutral-700 p-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Download className="w-5 h-5 text-blue-400" />
+                    Export Visitors
+                  </h2>
+                  <p className="text-sm text-neutral-400 mt-1">Download a CSV of all visitors with source, location, and activity.</p>
+                </div>
+              </div>
+
+              {/* Date Range Selector */}
+              <div className="flex items-center gap-3 mb-6">
+                <span className="text-sm text-neutral-400">Date Range:</span>
+                <div className="flex gap-2">
+                  {[
+                    { value: '1d', label: 'Today' },
+                    { value: '3d', label: 'Past 3 Days' },
+                    { value: '7d', label: 'Past 7 Days' },
+                    { value: '14d', label: 'Past 14 Days' },
+                    { value: '30d', label: 'Past Month' },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => { setExportRange(opt.value); setExportData(null); }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${exportRange === opt.value
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-neutral-700 text-neutral-300 hover:bg-neutral-600'
+                        }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Generate / Download Buttons */}
+              <div className="flex items-center gap-3 mb-6">
+                <button
+                  onClick={async () => {
+                    setExportLoading(true);
+                    try {
+                      const res = await fetch(`/api/export-visitors?range=${exportRange}&exclude_admin=${filterAdmin}`);
+                      const json = await res.json();
+                      setExportData(json.rows || []);
+                    } catch (err) {
+                      console.error(err);
+                    } finally {
+                      setExportLoading(false);
+                    }
+                  }}
+                  disabled={exportLoading}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {exportLoading ? (
+                    <><Loader2 size={14} className="animate-spin" /> Generating...</>
+                  ) : (
+                    <><Eye size={14} /> Preview Data</>
+                  )}
+                </button>
+                {exportData && exportData.length > 0 && (
+                  <button
+                    onClick={() => {
+                      const headers = ['IP Address', 'Source', 'Country', 'Page Hits', 'Total Time on Page (s)', 'Pages Visited (Top 5)'];
+                      const csvRows = [headers.join(',')];
+                      exportData.forEach(row => {
+                        csvRows.push([
+                          `"${row.ip}"`,
+                          `"${String(row.source || '').replace(/"/g, '""')}"`,
+                          `"${row.country}"`,
+                          row.pageHits,
+                          row.totalTimeSeconds,
+                          `"${String(row.topPages || '').replace(/"/g, '""')}"`,
+                        ].join(','));
+                      });
+                      const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `visitors-export-${exportRange}-${new Date().toISOString().split('T')[0]}.csv`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Download size={14} /> Download CSV ({exportData.length} rows)
+                  </button>
+                )}
+              </div>
+
+              {/* Preview Table */}
+              {exportData && (
+                <div className="overflow-x-auto rounded-lg border border-neutral-700">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
+                      <tr>
+                        <th className="px-4 py-3">IP Address</th>
+                        <th className="px-4 py-3">Source</th>
+                        <th className="px-4 py-3">Country</th>
+                        <th className="px-4 py-3 text-right">Page Hits</th>
+                        <th className="px-4 py-3 text-right">Total Time (s)</th>
+                        <th className="px-4 py-3">Pages Visited (Top 5)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-700/50">
+                      {exportData.length === 0 ? (
+                        <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-500">No visitors found for this date range.</td></tr>
+                      ) : (
+                        exportData.slice(0, 50).map((row: Record<string, string | number>, i: number) => (
+                          <tr key={i} className="hover:bg-white/5 transition-colors text-neutral-300">
+                            <td className="px-4 py-2.5 font-mono text-xs text-neutral-400">{row.ip}</td>
+                            <td className="px-4 py-2.5">
+                              {row.source !== 'Direct' ? (
+                                <span className="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20 text-xs">{row.source}</span>
+                              ) : (
+                                <span className="text-neutral-500 text-xs">Direct</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs">{row.country}</td>
+                            <td className="px-4 py-2.5 text-right font-mono text-xs">{row.pageHits}</td>
+                            <td className="px-4 py-2.5 text-right font-mono text-xs">{row.totalTimeSeconds}</td>
+                            <td className="px-4 py-2.5 text-xs text-neutral-400 max-w-md">
+                              <span className="break-all">{row.topPages || '—'}</span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                  {exportData.length > 50 && (
+                    <div className="px-4 py-2 text-xs text-neutral-500 bg-neutral-900/30 border-t border-neutral-700">
+                      Showing 50 of {exportData.length} rows. Download CSV for full data.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
