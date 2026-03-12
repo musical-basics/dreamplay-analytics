@@ -51,18 +51,19 @@ export async function GET(request: Request) {
         safeLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
 
-            // Parse source
+            // Keep raw source — full referrer URL or UTM params
             let entrySource: string | undefined;
             if (log.metadata?.utm_source) {
-                entrySource = `${log.metadata.utm_source}${log.metadata.utm_medium ? ` / ${log.metadata.utm_medium}` : ''}`;
+                entrySource = `utm_source=${log.metadata.utm_source}${log.metadata.utm_medium ? `&utm_medium=${log.metadata.utm_medium}` : ''}${log.metadata.utm_campaign ? `&utm_campaign=${log.metadata.utm_campaign}` : ''}`;
             } else if (log.metadata?.referrer) {
+                const ref = String(log.metadata.referrer);
                 try {
-                    const url = new URL(log.metadata.referrer);
+                    const url = new URL(ref);
                     if (!url.hostname.includes('dreamplaypianos.com')) {
-                        entrySource = url.hostname.replace('www.', '');
+                        entrySource = ref;
                     }
                 } catch {
-                    entrySource = log.metadata.referrer.substring(0, 50);
+                    entrySource = ref;
                 }
             }
 
