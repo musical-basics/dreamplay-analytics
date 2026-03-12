@@ -627,7 +627,7 @@ export default function Dashboard() {
                 ) : visitorHistory ? (
                   <>
                     {/* Visitor metadata cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-4">
                       <div className="bg-neutral-900/60 rounded-lg p-3">
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Total Pageviews</div>
                         <div className="text-xl font-bold text-white">{visitorHistory.total_pageviews}</div>
@@ -666,6 +666,18 @@ export default function Dashboard() {
                           ) : (
                             <span className="text-neutral-500">Unknown</span>
                           )}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                          <ExternalLink className="w-3 h-3" />
+                          Source
+                        </div>
+                        <div className="text-sm font-medium text-purple-400 break-all">
+                          {(() => {
+                            const v = data?.visitorStats?.find(v => v.ip === selectedVisitorIp);
+                            return v?.source ? v.source : <span className="text-neutral-500">Direct</span>;
+                          })()}
                         </div>
                       </div>
                     </div>
