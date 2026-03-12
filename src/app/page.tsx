@@ -53,7 +53,7 @@ interface DashboardData {
   }[];
   recentEvents: AnalyticsEvent[];
   abResults: { variant: string; label?: string; visitors: number; conversions: number; conversion_rate: number }[];
-  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string; sourceUrl?: string }[];
+  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string; sourceUrl?: string; totalTimeSeconds: number }[];
 }
 
 interface InsightsData {
@@ -723,6 +723,7 @@ export default function Dashboard() {
                         <th className="px-6 py-3">Email (if found)</th>
                         <th className="px-6 py-3">Country</th>
                         <th className="px-6 py-3">Page Hits</th>
+                        <th className="px-6 py-3">Time on Page</th>
                         <th className="px-6 py-3">Last Visited Page</th>
                         <th className="px-6 py-3">Last Seen</th>
                       </tr>
@@ -764,6 +765,11 @@ export default function Dashboard() {
                           <td className="px-6 py-4">
                             <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`font-mono text-xs px-2 py-0.5 rounded ${visitor.totalTimeSeconds > 0 ? 'bg-blue-500/10 text-blue-400' : 'bg-neutral-700/50 text-neutral-500'}`}>
+                              {formatDuration(visitor.totalTimeSeconds > 0 ? visitor.totalTimeSeconds : null)}
+                            </span>
+                          </td>
                           <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
                             {visitor.lastPath}
                           </td>
@@ -773,7 +779,7 @@ export default function Dashboard() {
                         </tr>
                       ))}
                       {(!data?.visitorStats || data.visitorStats.length === 0) && (
-                        <tr><td colSpan={7} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                        <tr><td colSpan={8} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
                       )}
                     </tbody>
                   </table>

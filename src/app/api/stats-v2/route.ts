@@ -86,7 +86,7 @@ export async function GET(request: Request) {
         });
 
         // Build visitor map
-        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string, sourceUrl?: string }>();
+        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string, sourceUrl?: string, totalTimeSeconds: number }>();
 
         safeVisitorLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
@@ -118,7 +118,8 @@ export async function GET(request: Request) {
                     device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
                     email: ipToEmailMap.get(ip),
                     source: entrySource,
-                    sourceUrl: entrySourceUrl
+                    sourceUrl: entrySourceUrl,
+                    totalTimeSeconds: 0
                 });
             } else if (entrySource) {
                 // Logs are newest-first; keep overwriting so oldest source wins
@@ -128,6 +129,14 @@ export async function GET(request: Request) {
 
             if (log.event_name === 'pageview') {
                 visitorMap.get(ip)!.count += 1;
+            }
+
+            // Accumulate time on page from page_leave events
+            if (log.event_name === 'page_leave' && log.metadata?.duration_seconds) {
+                const dur = Number(log.metadata.duration_seconds);
+                if (!isNaN(dur) && dur > 0 && dur < 3600) {
+                    visitorMap.get(ip)!.totalTimeSeconds += dur;
+                }
             }
         });
 
