@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     try {
         const { data: logs, error } = await supabase
             .from('analytics_logs')
-            .select('created_at, event_name, path, metadata')
+            .select('created_at, event_name, path, metadata, country')
             .eq('ip_address', ip)
             .in('event_name', ['pageview', 'page_leave'])
             .gt('created_at', startTime.toISOString())
@@ -51,6 +51,14 @@ export async function GET(request: Request) {
         // Separate the two event types
         const pageviews = safeLogs.filter(l => l.event_name === 'pageview');
         const leaveEvents = safeLogs.filter(l => l.event_name === 'page_leave');
+
+        // Extract geo from the most recent pageview that has geo data
+        const geoSource = [...pageviews].reverse().find(pv => pv.country || pv.metadata?.city);
+        const geo = {
+            country: geoSource?.country || null,
+            city: geoSource?.metadata?.city || null,
+            region: geoSource?.metadata?.region || null,
+        };
 
         // Calculate time on page
         const visits = pageviews.map((pv, i) => {
@@ -91,6 +99,7 @@ export async function GET(request: Request) {
             total_pageviews: pageviews.length,
             first_seen: pageviews.length > 0 ? pageviews[0].created_at : null,
             last_seen: pageviews.length > 0 ? pageviews[pageviews.length - 1].created_at : null,
+            geo,
         }, {
             headers: {
                 'Cache-Control': 'no-store, no-cache, max-age=0, must-revalidate',

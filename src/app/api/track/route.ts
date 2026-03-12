@@ -74,6 +74,8 @@ export async function POST(request: Request) {
             : request.headers.get('x-real-ip') || 'unknown';
         const user_agent = request.headers.get('user-agent');
         const country = request.headers.get('x-vercel-ip-country');
+        const city = request.headers.get('x-vercel-ip-city');
+        const region = request.headers.get('x-vercel-ip-country-region');
 
         const { error } = await supabase
             .from('analytics_logs')
@@ -82,7 +84,11 @@ export async function POST(request: Request) {
                     event_name: eventName,
                     path: safePath,
                     session_id: sessionId,
-                    metadata,
+                    metadata: {
+                        ...metadata,
+                        ...(city ? { city } : {}),
+                        ...(region ? { region } : {}),
+                    },
                     ip_address,
                     user_agent,
                     country,

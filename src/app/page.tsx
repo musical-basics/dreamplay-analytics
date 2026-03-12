@@ -6,7 +6,7 @@ import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
   ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X, Pencil, Trash2,
-  MessageCircle, Send
+  MessageCircle, Send, MapPin
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -37,6 +37,11 @@ interface VisitorHistory {
   total_pageviews: number;
   first_seen: string | null;
   last_seen: string | null;
+  geo?: {
+    country: string | null;
+    city: string | null;
+    region: string | null;
+  };
 }
 
 interface DashboardData {
@@ -618,7 +623,7 @@ export default function Dashboard() {
                 ) : visitorHistory ? (
                   <>
                     {/* Visitor metadata cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-4">
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 p-4">
                       <div className="bg-neutral-900/60 rounded-lg p-3">
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Total Pageviews</div>
                         <div className="text-xl font-bold text-white">{visitorHistory.total_pageviews}</div>
@@ -639,6 +644,24 @@ export default function Dashboard() {
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Last Seen</div>
                         <div className="text-sm font-medium text-white">
                           {visitorHistory.last_seen ? new Date(visitorHistory.last_seen).toLocaleString() : '—'}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          Location
+                        </div>
+                        <div className="text-sm font-medium text-white">
+                          {visitorHistory.geo?.country ? (
+                            <>
+                              {visitorHistory.geo.city && <span>{decodeURIComponent(visitorHistory.geo.city)}, </span>}
+                              {visitorHistory.geo.region && <span>{visitorHistory.geo.region}, </span>}
+                              <span>{(() => { try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(visitorHistory.geo.country); } catch { return visitorHistory.geo.country; } })()}</span>
+                              <span className="ml-1">{(() => { try { return String.fromCodePoint(...visitorHistory.geo.country.toUpperCase().split('').map(c => 0x1F1E6 - 65 + c.charCodeAt(0))); } catch { return ''; } })()}</span>
+                            </>
+                          ) : (
+                            <span className="text-neutral-500">Unknown</span>
+                          )}
                         </div>
                       </div>
                     </div>
