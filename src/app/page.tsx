@@ -681,11 +681,23 @@ export default function Dashboard() {
                           {visitorHistory.visits.map((visit, i) => (
                             <tr key={i} className="hover:bg-white/5 transition-colors">
                               <td className="px-6 py-3 text-neutral-500 font-mono text-xs">{i + 1}</td>
-                              <td className="px-6 py-3 text-neutral-200 max-w-md">
-                                <div className="flex items-center gap-2">
-                                  <span className="truncate" title={visit.path}>{visit.path}</span>
+                              <td className="px-6 py-3 text-neutral-200">
+                                <div className="flex items-start gap-2">
+                                  <span
+                                    className="cursor-pointer hover:text-blue-400 transition-colors break-all"
+                                    title={visit.path}
+                                    onClick={(e) => {
+                                      const el = e.currentTarget;
+                                      const isClamped = el.style.webkitLineClamp === '1';
+                                      el.style.webkitLineClamp = isClamped ? 'unset' : '1';
+                                      el.style.overflow = isClamped ? 'visible' : 'hidden';
+                                    }}
+                                    style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                                  >
+                                    {visit.path}
+                                  </span>
                                   {visit.path.startsWith('http') && (
-                                    <a href={visit.path} target="_blank" rel="noopener noreferrer" className="text-neutral-500 hover:text-blue-400 flex-shrink-0">
+                                    <a href={visit.path} target="_blank" rel="noopener noreferrer" className="text-neutral-500 hover:text-blue-400 flex-shrink-0 mt-0.5">
                                       <ExternalLink size={12} />
                                     </a>
                                   )}
