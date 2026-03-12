@@ -754,17 +754,17 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-neutral-400">
+                  <table className="w-full text-left text-sm text-neutral-400 table-fixed">
                     <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                       <tr>
-                        <th className="px-6 py-3">IP Address</th>
-                        <th className="px-6 py-3">Source</th>
-                        <th className="px-6 py-3">Email (if found)</th>
-                        <th className="px-6 py-3">Country</th>
-                        <th className="px-6 py-3">Page Hits</th>
-                        <th className="px-6 py-3">Time on Page</th>
-                        <th className="px-6 py-3">Last Visited Page</th>
-                        <th className="px-6 py-3">Last Seen</th>
+                        <th className="px-4 py-3 w-[12%]">IP Address</th>
+                        <th className="px-4 py-3 w-[30%]">Source</th>
+                        <th className="px-4 py-3 w-[12%]">Email (if found)</th>
+                        <th className="px-4 py-3 w-[8%]">Country</th>
+                        <th className="px-4 py-3 w-[6%]">Page Hits</th>
+                        <th className="px-4 py-3 w-[8%]">Time on Page</th>
+                        <th className="px-4 py-3 w-[14%]">Last Visited Page</th>
+                        <th className="px-4 py-3 w-[10%]">Last Seen</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-700/50">
@@ -774,8 +774,8 @@ export default function Dashboard() {
                           onClick={() => setSelectedVisitorIp(visitor.ip)}
                           className="hover:bg-white/5 transition-colors cursor-pointer group"
                         >
-                          <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4 font-mono text-white group-hover:text-blue-400 transition-colors text-xs overflow-hidden">{visitor.ip}</td>
+                          <td className="px-4 py-4 overflow-hidden">
                             {visitor.source ? (
                               <span
                                 className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium inline-block break-all"
@@ -787,28 +787,28 @@ export default function Dashboard() {
                               <span className="text-neutral-600 text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-4 py-4 overflow-hidden">
                             {visitor.email ? (
-                              <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{visitor.email}</span>
+                              <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium truncate block">{visitor.email}</span>
                             ) : (
                               <span className="text-neutral-600 text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-6 py-4 flex items-center gap-2">
-                            <Globe size={12} /> {visitor.country}
+                          <td className="px-4 py-4">
+                            <span className="flex items-center gap-1 text-xs"><Globe size={12} /> {visitor.country}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-4">
                             <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-4 py-4 whitespace-nowrap">
                             <span className={`font-mono text-xs px-2 py-0.5 rounded ${visitor.totalTimeSeconds > 0 ? 'bg-blue-500/10 text-blue-400' : 'bg-neutral-700/50 text-neutral-500'}`}>
                               {formatDuration(visitor.totalTimeSeconds > 0 ? visitor.totalTimeSeconds : null)}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
+                          <td className="px-4 py-4 text-neutral-300 text-xs overflow-hidden truncate" title={visitor.lastPath}>
                             {visitor.lastPath}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-4 py-4 whitespace-nowrap text-xs">
                             {new Date(visitor.lastSeen).toLocaleString()}
                           </td>
                         </tr>
