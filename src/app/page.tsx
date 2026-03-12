@@ -775,18 +775,22 @@ export default function Dashboard() {
                           className="hover:bg-white/5 transition-colors cursor-pointer group"
                         >
                           <td className="px-6 py-4 font-mono text-white group-hover:text-blue-400 transition-colors">{visitor.ip}</td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="px-6 py-4 max-w-[250px]">
                             {visitor.source ? (
-                              visitor.sourceUrl ? (
-                                <a href={visitor.sourceUrl} target="_blank" rel="noopener noreferrer" title={visitor.sourceUrl} onClick={(e) => e.stopPropagation()} className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium hover:bg-purple-500/20 hover:text-purple-300 transition-colors inline-flex items-center gap-1">
-                                  {visitor.source}
-                                  <ExternalLink size={10} className="opacity-50" />
-                                </a>
-                              ) : (
-                                <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
-                                  {visitor.source}
-                                </span>
-                              )
+                              <span
+                                className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium cursor-pointer hover:bg-purple-500/20 hover:text-purple-300 transition-colors inline-block break-all"
+                                title={visitor.source}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const el = e.currentTarget;
+                                  const isClamped = el.style.webkitLineClamp === '1';
+                                  el.style.webkitLineClamp = isClamped ? 'unset' : '1';
+                                  el.style.overflow = isClamped ? 'visible' : 'hidden';
+                                }}
+                                style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                              >
+                                {visitor.source}
+                              </span>
                             ) : (
                               <span className="text-neutral-600 text-xs">—</span>
                             )}
@@ -1117,18 +1121,22 @@ export default function Dashboard() {
                                 <span className="ml-2 bg-green-500/20 text-green-400 border border-green-500/30 px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider">Purchased</span>
                               )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-6 py-4 max-w-[250px]">
                               {visitor.source ? (
-                                visitor.sourceUrl ? (
-                                  <a href={visitor.sourceUrl} target="_blank" rel="noopener noreferrer" title={visitor.sourceUrl} onClick={(e) => e.stopPropagation()} className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium hover:bg-purple-500/20 hover:text-purple-300 transition-colors inline-flex items-center gap-1">
-                                    {visitor.source}
-                                    <ExternalLink size={10} className="opacity-50" />
-                                  </a>
-                                ) : (
-                                  <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium">
-                                    {visitor.source}
-                                  </span>
-                                )
+                                <span
+                                  className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium cursor-pointer hover:bg-purple-500/20 hover:text-purple-300 transition-colors inline-block break-all"
+                                  title={visitor.source}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const el = e.currentTarget;
+                                    const isClamped = el.style.webkitLineClamp === '1';
+                                    el.style.webkitLineClamp = isClamped ? 'unset' : '1';
+                                    el.style.overflow = isClamped ? 'visible' : 'hidden';
+                                  }}
+                                  style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                                >
+                                  {visitor.source}
+                                </span>
                               ) : (
                                 <span className="text-neutral-600 text-xs">—</span>
                               )}

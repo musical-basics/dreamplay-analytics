@@ -91,20 +91,21 @@ export async function GET(request: Request) {
         safeVisitorLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
 
-            // Parse traffic source from metadata
+            // Parse traffic source from metadata — keep raw links
             let entrySource: string | undefined = undefined;
             let entrySourceUrl: string | undefined = undefined;
             if (log.metadata?.utm_source) {
-                entrySource = `${log.metadata.utm_source}${log.metadata.utm_medium ? ` / ${log.metadata.utm_medium}` : ''}`;
+                entrySource = `utm_source=${log.metadata.utm_source}${log.metadata.utm_medium ? `&utm_medium=${log.metadata.utm_medium}` : ''}${log.metadata.utm_campaign ? `&utm_campaign=${log.metadata.utm_campaign}` : ''}`;
             } else if (log.metadata?.referrer) {
+                const ref = String(log.metadata.referrer);
                 try {
-                    const url = new URL(log.metadata.referrer);
+                    const url = new URL(ref);
                     if (!url.hostname.includes('dreamplaypianos.com')) {
-                        entrySource = url.hostname.replace('www.', '');
-                        entrySourceUrl = log.metadata.referrer;
+                        entrySource = ref;
+                        entrySourceUrl = ref;
                     }
                 } catch {
-                    entrySource = log.metadata.referrer.substring(0, 30);
+                    entrySource = ref;
                 }
             }
 
