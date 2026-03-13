@@ -88,7 +88,7 @@ export async function GET(request: Request) {
             if (durationSeconds !== null && durationSeconds > 7200) durationSeconds = null;
 
             // Attach slide events for /intro-offer visits
-            const isIntroOffer = pv.path === '/intro-offer' || pv.path.startsWith('/intro-offer?');
+            const isIntroOffer = pv.path === '/intro-offer' || pv.path.startsWith('/intro-offer?') || pv.path === '/' || pv.path.startsWith('/?');
             let slide_events: { slide_number: number; slide_label: string; duration_seconds: number | null; entered_at: string }[] | undefined = undefined;
 
             if (isIntroOffer) {
