@@ -8,6 +8,13 @@ const KNOWN_BOT_IPS = [
 // Known cloud provider / datacenter IP prefixes
 // These are server IPs, not real users browsing from home
 const CLOUD_PROVIDER_PREFIXES = [
+    // Google (Googlebot crawler)
+    '66.249.',    // Googlebot primary range
+    '64.233.',    // Google
+    '72.14.',     // Google
+    '209.85.',    // Google
+    '216.239.',   // Google
+
     // DigitalOcean ranges (most common bot source)
     '137.184.',   // DigitalOcean
     '146.190.',   // DigitalOcean
