@@ -766,18 +766,18 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-neutral-400 table-fixed">
+                  <table className="w-full text-left text-sm text-neutral-400">
                     <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                       <tr>
-                        <th className="px-4 py-3 w-[12%]">IP Address</th>
-                        <th className="px-4 py-3 w-[26%]">Source</th>
-                        <th className="px-4 py-3 w-[12%]">Email (if found)</th>
-                        <th className="px-4 py-3 w-[8%]">Country</th>
-                        <th className="px-4 py-3 w-[5%]">Device</th>
-                        <th className="px-4 py-3 w-[5%]">Page Hits</th>
-                        <th className="px-4 py-3 w-[8%]">Time on Page</th>
-                        <th className="px-4 py-3 w-[14%]">Last Visited Page</th>
-                        <th className="px-4 py-3 w-[10%]">Last Seen</th>
+                        <th className="px-4 py-3 whitespace-nowrap">IP Address</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Source</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Email (if found)</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Country</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Device</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Page Hits</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Time on Page</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Last Visited Page</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Last Seen</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-700/50">
@@ -812,10 +812,10 @@ export default function Dashboard() {
                           </td>
                           <td className="px-4 py-4">
                             <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${visitor.device === 'Mobile' ? 'bg-blue-500/15 text-blue-400' :
-                                visitor.device === 'Desktop' ? 'bg-green-500/15 text-green-400' :
-                                  visitor.device === 'Tablet' ? 'bg-purple-500/15 text-purple-400' :
-                                    visitor.device === 'Bot' ? 'bg-orange-500/15 text-orange-400' :
-                                      'bg-neutral-700/50 text-neutral-500'
+                              visitor.device === 'Desktop' ? 'bg-green-500/15 text-green-400' :
+                                visitor.device === 'Tablet' ? 'bg-purple-500/15 text-purple-400' :
+                                  visitor.device === 'Bot' ? 'bg-orange-500/15 text-orange-400' :
+                                    'bg-neutral-700/50 text-neutral-500'
                               }`}>
                               {visitor.device === 'Mobile' ? <Smartphone size={11} /> :
                                 visitor.device === 'Desktop' ? <Monitor size={11} /> :
