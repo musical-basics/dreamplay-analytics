@@ -1,12 +1,12 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
   ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X, Pencil, Trash2,
-  MessageCircle, Send, MapPin, Download, Monitor, Tablet
+  MessageCircle, Send, MapPin, Download, Monitor, Tablet, ChevronDown, ChevronRight
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -135,6 +135,7 @@ export default function Dashboard() {
   const [activeMetric, setActiveMetric] = useState<MetricType>('pageviews');
   const [selectedVisitorIp, setSelectedVisitorIp] = useState<string | null>(null);
   const [visitorHistory, setVisitorHistory] = useState<VisitorHistory | null>(null);
+  const [expandedSlideRows, setExpandedSlideRows] = useState<Set<number>>(new Set());
   const [historyLoading, setHistoryLoading] = useState(false);
   const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
   const [insightsLoading, setInsightsLoading] = useState(false);
@@ -694,44 +695,103 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-700/50">
-                          {visitorHistory.visits.map((visit, i) => (
-                            <tr key={i} className="hover:bg-white/5 transition-colors">
-                              <td className="px-6 py-3 text-neutral-500 font-mono text-xs">{i + 1}</td>
-                              <td className="px-6 py-3 text-neutral-200">
-                                <div className="flex items-start gap-2">
-                                  <span
-                                    className="cursor-pointer hover:text-blue-400 transition-colors break-all"
-                                    title={visit.path}
-                                    onClick={(e) => {
-                                      const el = e.currentTarget;
-                                      const isClamped = el.style.webkitLineClamp === '1';
-                                      el.style.webkitLineClamp = isClamped ? 'unset' : '1';
-                                      el.style.overflow = isClamped ? 'visible' : 'hidden';
-                                    }}
-                                    style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                                  >
-                                    {visit.path}
-                                  </span>
-                                  {visit.path.startsWith('http') && (
-                                    <a href={visit.path} target="_blank" rel="noopener noreferrer" className="text-neutral-500 hover:text-blue-400 flex-shrink-0 mt-0.5">
-                                      <ExternalLink size={12} />
-                                    </a>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-6 py-3 whitespace-nowrap text-neutral-300">
-                                {new Date(visit.visited_at).toLocaleString()}
-                              </td>
-                              <td className="px-6 py-3 whitespace-nowrap">
-                                <span className={`font-mono text-xs px-2 py-0.5 rounded ${visit.duration_seconds !== null
-                                  ? 'bg-blue-500/10 text-blue-400'
-                                  : 'bg-neutral-700/50 text-neutral-500'
-                                  }`}>
-                                  {formatDuration(visit.duration_seconds)}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
+                          {visitorHistory.visits.map((visit: any, i: number) => {
+                            const hasSlides = visit.slide_events && visit.slide_events.length > 0;
+                            const isExpanded = expandedSlideRows.has(i);
+                            const maxSlide = hasSlides ? Math.max(...visit.slide_events.map((s: any) => s.slide_number ?? 0)) : 0;
+                            return (
+                              <React.Fragment key={i}>
+                                <tr className={`hover:bg-white/5 transition-colors ${hasSlides ? 'cursor-pointer' : ''}`}
+                                  onClick={() => {
+                                    if (!hasSlides) return;
+                                    setExpandedSlideRows(prev => {
+                                      const next = new Set(prev);
+                                      if (next.has(i)) next.delete(i); else next.add(i);
+                                      return next;
+                                    });
+                                  }}
+                                >
+                                  <td className="px-6 py-3 text-neutral-500 font-mono text-xs">
+                                    <div className="flex items-center gap-1">
+                                      {hasSlides && (
+                                        isExpanded ? <ChevronDown size={12} className="text-blue-400" /> : <ChevronRight size={12} className="text-neutral-500" />
+                                      )}
+                                      {i + 1}
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-3 text-neutral-200">
+                                    <div className="flex items-start gap-2">
+                                      <span
+                                        className="cursor-pointer hover:text-blue-400 transition-colors break-all"
+                                        title={visit.path}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const el = e.currentTarget;
+                                          const isClamped = el.style.webkitLineClamp === '1';
+                                          el.style.webkitLineClamp = isClamped ? 'unset' : '1';
+                                          el.style.overflow = isClamped ? 'visible' : 'hidden';
+                                        }}
+                                        style={{ display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                                      >
+                                        {visit.path}
+                                      </span>
+                                      {hasSlides && (
+                                        <span className="flex-shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 whitespace-nowrap">
+                                          ↕ Slide {maxSlide + 1}/{17}
+                                        </span>
+                                      )}
+                                      {visit.path.startsWith('http') && (
+                                        <a href={visit.path} target="_blank" rel="noopener noreferrer" className="text-neutral-500 hover:text-blue-400 flex-shrink-0 mt-0.5" onClick={e => e.stopPropagation()}>
+                                          <ExternalLink size={12} />
+                                        </a>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-3 whitespace-nowrap text-neutral-300">
+                                    {new Date(visit.visited_at).toLocaleString()}
+                                  </td>
+                                  <td className="px-6 py-3 whitespace-nowrap">
+                                    <span className={`font-mono text-xs px-2 py-0.5 rounded ${visit.duration_seconds !== null
+                                      ? 'bg-blue-500/10 text-blue-400'
+                                      : 'bg-neutral-700/50 text-neutral-500'
+                                      }`}>
+                                      {formatDuration(visit.duration_seconds)}
+                                    </span>
+                                  </td>
+                                </tr>
+                                {hasSlides && isExpanded && (
+                                  <tr className="bg-neutral-900/60">
+                                    <td colSpan={4} className="px-6 py-3">
+                                      <div className="ml-6 border-l-2 border-purple-500/30 pl-4">
+                                        <p className="text-[10px] uppercase tracking-widest text-purple-400 mb-2 font-semibold">Slide Journey</p>
+                                        <div className="grid grid-cols-[40px_1fr_80px_120px] gap-y-1 text-xs">
+                                          <span className="text-neutral-500 font-semibold">##</span>
+                                          <span className="text-neutral-500 font-semibold">Slide</span>
+                                          <span className="text-neutral-500 font-semibold">Time</span>
+                                          <span className="text-neutral-500 font-semibold">Entered</span>
+                                          {visit.slide_events.map((s: any, si: number) => (
+                                            <React.Fragment key={si}>
+                                              <span className="text-neutral-500 font-mono">{(s.slide_number ?? 0) + 1}</span>
+                                              <span className={`${s.slide_number === maxSlide ? 'text-purple-300 font-medium' : 'text-neutral-300'}`}>
+                                                {s.slide_label}
+                                                {s.slide_number === maxSlide && <span className="ml-1.5 text-[9px] bg-purple-500/20 text-purple-400 px-1 py-0.5 rounded">deepest</span>}
+                                              </span>
+                                              <span className="font-mono text-blue-400">
+                                                {s.duration_seconds !== null ? formatDuration(s.duration_seconds) : '—'}
+                                              </span>
+                                              <span className="text-neutral-500">
+                                                {new Date(s.entered_at).toLocaleTimeString()}
+                                              </span>
+                                            </React.Fragment>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
+                            );
+                          })}
                           {visitorHistory.visits.length === 0 && (
                             <tr><td colSpan={4} className="px-6 py-8 text-center text-neutral-500">No page visits recorded.</td></tr>
                           )}
@@ -784,7 +844,7 @@ export default function Dashboard() {
                       {data?.visitorStats?.map((visitor, i) => (
                         <tr
                           key={i}
-                          onClick={() => setSelectedVisitorIp(visitor.ip)}
+                          onClick={() => { setSelectedVisitorIp(visitor.ip); setExpandedSlideRows(new Set()); }}
                           className="hover:bg-white/5 transition-colors cursor-pointer group"
                         >
                           <td className="px-4 py-4 whitespace-nowrap text-xs">

@@ -39,7 +39,7 @@ export async function GET(request: Request) {
             .from('analytics_logs')
             .select('created_at, event_name, path, metadata, country')
             .eq('ip_address', ip)
-            .in('event_name', ['pageview', 'page_leave'])
+            .in('event_name', ['pageview', 'page_leave', 'slide_view'])
             .gt('created_at', startTime.toISOString())
             .order('created_at', { ascending: true })
             .limit(5000);
@@ -48,9 +48,10 @@ export async function GET(request: Request) {
 
         const safeLogs = logs || [];
 
-        // Separate the two event types
+        // Separate the event types
         const pageviews = safeLogs.filter(l => l.event_name === 'pageview');
         const leaveEvents = safeLogs.filter(l => l.event_name === 'page_leave');
+        const slideEvents = safeLogs.filter(l => l.event_name === 'slide_view');
 
         // Extract geo from the most recent pageview that has geo data
         const geoSource = [...pageviews].reverse().find(pv => pv.country || pv.metadata?.city);
@@ -86,11 +87,33 @@ export async function GET(request: Request) {
             // Cap extremely long idle times at 2 hours
             if (durationSeconds !== null && durationSeconds > 7200) durationSeconds = null;
 
+            // Attach slide events for /intro-offer visits
+            const isIntroOffer = pv.path === '/intro-offer' || pv.path.startsWith('/intro-offer?');
+            let slide_events: any[] | undefined = undefined;
+
+            if (isIntroOffer) {
+                // Find slide_view events that occurred during this pageview window
+                const relevantSlides = slideEvents.filter(s => {
+                    const sTime = new Date(s.created_at).getTime();
+                    return sTime >= pvTime && sTime < nextPvTime;
+                });
+
+                if (relevantSlides.length > 0) {
+                    slide_events = relevantSlides.map(s => ({
+                        slide_number: s.metadata?.slide_number ?? null,
+                        slide_label: s.metadata?.slide_label || `Slide ${(s.metadata?.slide_number ?? 0) + 1}`,
+                        duration_seconds: s.metadata?.duration_seconds ?? null,
+                        entered_at: s.created_at,
+                    }));
+                }
+            }
+
             return {
                 path: pv.path,
                 visited_at: pv.created_at,
                 duration_seconds: durationSeconds,
                 metadata: pv.metadata,
+                ...(slide_events ? { slide_events } : {}),
             };
         });
 
