@@ -89,7 +89,7 @@ export async function GET(request: Request) {
 
             // Attach slide events for /intro-offer visits
             const isIntroOffer = pv.path === '/intro-offer' || pv.path.startsWith('/intro-offer?');
-            let slide_events: any[] | undefined = undefined;
+            let slide_events: { slide_number: number; slide_label: string; duration_seconds: number | null; entered_at: string }[] | undefined = undefined;
 
             if (isIntroOffer) {
                 // Find slide_view events that occurred during this pageview window

@@ -701,10 +701,10 @@ export default function Dashboard() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-neutral-700/50">
-                          {visitorHistory.visits.map((visit: any, i: number) => {
+                          {visitorHistory.visits.map((visit: { path: string; visited_at: string; duration_seconds: number | null; slide_events?: { slide_number: number; slide_label: string; duration_seconds: number | null; entered_at: string }[] }, i: number) => {
                             const hasSlides = visit.slide_events && visit.slide_events.length > 0;
                             const isExpanded = expandedSlideRows.has(i);
-                            const maxSlide = hasSlides ? Math.max(...visit.slide_events.map((s: any) => s.slide_number ?? 0)) : 0;
+                            const maxSlide = hasSlides ? Math.max(...visit.slide_events!.map((s: { slide_number: number }) => s.slide_number ?? 0)) : 0;
                             return (
                               <React.Fragment key={i}>
                                 <tr className={`hover:bg-white/5 transition-colors ${hasSlides ? 'cursor-pointer' : ''}`}
@@ -775,7 +775,7 @@ export default function Dashboard() {
                                           <span className="text-neutral-500 font-semibold">Slide</span>
                                           <span className="text-neutral-500 font-semibold">Time</span>
                                           <span className="text-neutral-500 font-semibold">Entered</span>
-                                          {visit.slide_events.map((s: any, si: number) => (
+                                          {visit.slide_events!.map((s: { slide_number: number; slide_label: string; duration_seconds: number | null; entered_at: string }, si: number) => (
                                             <React.Fragment key={si}>
                                               <span className="text-neutral-500 font-mono">{(s.slide_number ?? 0) + 1}</span>
                                               <span className={`${s.slide_number === maxSlide ? 'text-purple-300 font-medium' : 'text-neutral-300'}`}>
