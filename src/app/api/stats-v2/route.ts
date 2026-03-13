@@ -116,7 +116,14 @@ export async function GET(request: Request) {
                     lastPath: log.path,
                     lastSeen: log.created_at,
                     country: log.country || 'Unknown',
-                    device: log.user_agent ? (log.user_agent.includes('Mac') ? 'Mac' : 'Device') : 'Unknown',
+                    device: (() => {
+                        const ua = log.user_agent || '';
+                        if (!ua) return 'Unknown';
+                        if (/bot|crawl|spider|slurp|facebookexternalhit|Twitterbot|LinkedInBot/i.test(ua)) return 'Bot';
+                        if (/iPad|tablet|Kindle|Silk|PlayBook/i.test(ua)) return 'Tablet';
+                        if (/Mobile|iPhone|iPod|Android.*Mobile|webOS|BlackBerry|Opera Mini|IEMobile/i.test(ua)) return 'Mobile';
+                        return 'Desktop';
+                    })(),
                     email: ipToEmailMap.get(ip),
                     source: entrySource,
                     sourceUrl: entrySourceUrl,

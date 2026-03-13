@@ -6,7 +6,7 @@ import {
   Activity, Users, Eye, Clock, FileText,
   LayoutDashboard, TableProperties, FlaskConical, Globe, Smartphone, ShieldAlert, Network,
   ArrowLeft, Loader2, ExternalLink, TrendingUp, ArrowUpRight, BarChart3, Bot, Mail, Check, X, Pencil, Trash2,
-  MessageCircle, Send, MapPin, Download
+  MessageCircle, Send, MapPin, Download, Monitor, Tablet
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -770,10 +770,11 @@ export default function Dashboard() {
                     <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                       <tr>
                         <th className="px-4 py-3 w-[12%]">IP Address</th>
-                        <th className="px-4 py-3 w-[30%]">Source</th>
+                        <th className="px-4 py-3 w-[26%]">Source</th>
                         <th className="px-4 py-3 w-[12%]">Email (if found)</th>
                         <th className="px-4 py-3 w-[8%]">Country</th>
-                        <th className="px-4 py-3 w-[6%]">Page Hits</th>
+                        <th className="px-4 py-3 w-[5%]">Device</th>
+                        <th className="px-4 py-3 w-[5%]">Page Hits</th>
                         <th className="px-4 py-3 w-[8%]">Time on Page</th>
                         <th className="px-4 py-3 w-[14%]">Last Visited Page</th>
                         <th className="px-4 py-3 w-[10%]">Last Seen</th>
@@ -810,6 +811,20 @@ export default function Dashboard() {
                             <span className="flex items-center gap-1 text-xs"><Globe size={12} /> {visitor.country}</span>
                           </td>
                           <td className="px-4 py-4">
+                            <span className={`inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded ${visitor.device === 'Mobile' ? 'bg-blue-500/15 text-blue-400' :
+                                visitor.device === 'Desktop' ? 'bg-green-500/15 text-green-400' :
+                                  visitor.device === 'Tablet' ? 'bg-purple-500/15 text-purple-400' :
+                                    visitor.device === 'Bot' ? 'bg-orange-500/15 text-orange-400' :
+                                      'bg-neutral-700/50 text-neutral-500'
+                              }`}>
+                              {visitor.device === 'Mobile' ? <Smartphone size={11} /> :
+                                visitor.device === 'Desktop' ? <Monitor size={11} /> :
+                                  visitor.device === 'Tablet' ? <Tablet size={11} /> :
+                                    visitor.device === 'Bot' ? <Bot size={11} /> : null}
+                              {visitor.device}
+                            </span>
+                          </td>
+                          <td className="px-4 py-4">
                             <span className="bg-neutral-700 text-white px-2 py-0.5 rounded text-xs font-mono">{visitor.count}</span>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap">
@@ -826,7 +841,7 @@ export default function Dashboard() {
                         </tr>
                       ))}
                       {(!data?.visitorStats || data.visitorStats.length === 0) && (
-                        <tr><td colSpan={8} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                        <tr><td colSpan={9} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
                       )}
                     </tbody>
                   </table>
