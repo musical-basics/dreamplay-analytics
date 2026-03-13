@@ -769,6 +769,7 @@ export default function Dashboard() {
                   <table className="w-full text-left text-sm text-neutral-400">
                     <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                       <tr>
+                        <th className="px-4 py-3 whitespace-nowrap">Last Seen</th>
                         <th className="px-4 py-3 whitespace-nowrap">IP Address</th>
                         <th className="px-4 py-3 whitespace-nowrap">Source</th>
                         <th className="px-4 py-3 whitespace-nowrap">Email (if found)</th>
@@ -777,7 +778,6 @@ export default function Dashboard() {
                         <th className="px-4 py-3 whitespace-nowrap">Page Hits</th>
                         <th className="px-4 py-3 whitespace-nowrap">Time on Page</th>
                         <th className="px-4 py-3 whitespace-nowrap">Last Visited Page</th>
-                        <th className="px-4 py-3 whitespace-nowrap">Last Seen</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-700/50">
@@ -787,6 +787,9 @@ export default function Dashboard() {
                           onClick={() => setSelectedVisitorIp(visitor.ip)}
                           className="hover:bg-white/5 transition-colors cursor-pointer group"
                         >
+                          <td className="px-4 py-4 whitespace-nowrap text-xs">
+                            {new Date(visitor.lastSeen).toLocaleString()}
+                          </td>
                           <td className="px-4 py-4 font-mono text-white group-hover:text-blue-400 transition-colors text-xs overflow-hidden">{visitor.ip}</td>
                           <td className="px-4 py-4 overflow-hidden">
                             {visitor.source ? (
@@ -834,9 +837,6 @@ export default function Dashboard() {
                           </td>
                           <td className="px-4 py-4 text-neutral-300 text-xs overflow-hidden truncate" title={visitor.lastPath}>
                             {visitor.lastPath}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-xs">
-                            {new Date(visitor.lastSeen).toLocaleString()}
                           </td>
                         </tr>
                       ))}
@@ -1118,13 +1118,13 @@ export default function Dashboard() {
                     <table className="w-full text-left text-sm text-neutral-400">
                       <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                         <tr>
+                          <th className="px-6 py-3">Last Seen</th>
                           <th className="px-6 py-3">Email</th>
                           <th className="px-6 py-3">Source</th>
                           <th className="px-6 py-3">IP Address</th>
                           <th className="px-6 py-3">Country</th>
                           <th className="px-6 py-3">Page Hits</th>
                           <th className="px-6 py-3">Last Visited Page</th>
-                          <th className="px-6 py-3">Last Seen</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-700/50">
@@ -1134,6 +1134,9 @@ export default function Dashboard() {
                             onClick={() => setSelectedVisitorIp(visitor.ip)}
                             className="hover:bg-white/5 transition-colors cursor-pointer group"
                           >
+                            <td className="px-6 py-4 whitespace-nowrap text-xs">
+                              {new Date(visitor.lastSeen).toLocaleString()}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <span className="bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded text-xs font-medium">{visitor.email}</span>
                               {visitor.purchased && (
@@ -1161,9 +1164,6 @@ export default function Dashboard() {
                             </td>
                             <td className="px-6 py-4 text-neutral-300 max-w-xs truncate" title={visitor.lastPath}>
                               {visitor.lastPath}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              {new Date(visitor.lastSeen).toLocaleString()}
                             </td>
                           </tr>
                         ))}
