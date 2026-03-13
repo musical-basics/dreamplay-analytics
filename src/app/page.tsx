@@ -791,10 +791,10 @@ export default function Dashboard() {
                             {new Date(visitor.lastSeen).toLocaleString()}
                           </td>
                           <td className="px-4 py-4 font-mono text-white group-hover:text-blue-400 transition-colors text-xs overflow-hidden">{visitor.ip}</td>
-                          <td className="px-4 py-4 overflow-hidden">
+                          <td className="px-4 py-4 min-w-[200px] max-w-[280px]">
                             {visitor.source ? (
                               <span
-                                className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium inline-block break-all"
+                                className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-xs font-medium inline-block break-all line-clamp-2"
                                 title={visitor.source}
                               >
                                 {visitor.source}
