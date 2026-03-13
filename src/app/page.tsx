@@ -640,6 +640,12 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Total Time on Site</div>
+                        <div className="text-xl font-bold text-emerald-400">
+                          {formatDuration(visitorHistory.visits.reduce((sum, v) => sum + (v.duration_seconds || 0), 0) || null)}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">First Seen</div>
                         <div className="text-sm font-medium text-white">
                           {visitorHistory.first_seen ? new Date(visitorHistory.first_seen).toLocaleString() : '—'}
@@ -1080,6 +1086,12 @@ export default function Dashboard() {
                         <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Pages Visited</div>
                         <div className="text-xl font-bold text-white">
                           {new Set(visitorHistory.visits.map(v => v.path)).size}
+                        </div>
+                      </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1">Total Time on Site</div>
+                        <div className="text-xl font-bold text-emerald-400">
+                          {formatDuration(visitorHistory.visits.reduce((sum, v) => sum + (v.duration_seconds || 0), 0) || null)}
                         </div>
                       </div>
                       <div className="bg-neutral-900/60 rounded-lg p-3">
