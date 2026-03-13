@@ -2,6 +2,7 @@
 const KNOWN_BOT_IPS = [
     '::1',       // localhost
     '127.0.0.1', // localhost
+    '126.73.147.149', // bot: 20 visits to same crowdfund page
 ];
 
 // Known cloud provider / datacenter IP prefixes
@@ -20,6 +21,7 @@ const CLOUD_PROVIDER_PREFIXES = [
     '159.89.',    // DigitalOcean
     '159.65.',    // DigitalOcean
     '165.227.',   // DigitalOcean
+    '165.232.',   // DigitalOcean
     '167.71.',    // DigitalOcean
     '167.172.',   // DigitalOcean
     '134.209.',   // DigitalOcean
