@@ -86,7 +86,7 @@ export async function GET(request: Request) {
         });
 
         // Build visitor map
-        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string, sourceUrl?: string, totalTimeSeconds: number }>();
+        const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string, sourceUrl?: string, totalTimeSeconds: number, journey_id?: string }>();
 
         safeVisitorLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
@@ -127,12 +127,18 @@ export async function GET(request: Request) {
                     email: ipToEmailMap.get(ip),
                     source: entrySource,
                     sourceUrl: entrySourceUrl,
-                    totalTimeSeconds: 0
+                    totalTimeSeconds: 0,
+                    journey_id: log.metadata?.journey_id || undefined,
                 });
             } else if (entrySource) {
                 // Logs are newest-first; keep overwriting so oldest source wins
                 visitorMap.get(ip)!.source = entrySource;
                 if (entrySourceUrl) visitorMap.get(ip)!.sourceUrl = entrySourceUrl;
+            }
+
+            // Keep most recent journey_id
+            if (log.metadata?.journey_id && !visitorMap.get(ip)!.journey_id) {
+                visitorMap.get(ip)!.journey_id = log.metadata.journey_id;
             }
 
             if (log.event_name === 'pageview') {

@@ -114,6 +114,7 @@ export async function GET(request: Request) {
             purchased: boolean;
             source?: string;
             sourceUrl?: string;
+            journey_id?: string;
         }>();
 
         // Logs are newest-first, so first occurrence = most recent
@@ -158,11 +159,17 @@ export async function GET(request: Request) {
                     purchased: false,
                     source: entrySource,
                     sourceUrl: entrySourceUrl,
+                    journey_id: log.metadata?.journey_id || undefined,
                 });
             } else if (entrySource) {
                 // Logs are newest-first; keep overwriting so oldest source wins
                 visitorMap.get(ip)!.source = entrySource;
                 if (entrySourceUrl) visitorMap.get(ip)!.sourceUrl = entrySourceUrl;
+            }
+
+            // Keep most recent journey_id
+            if (log.metadata?.journey_id && !visitorMap.get(ip)!.journey_id) {
+                visitorMap.get(ip)!.journey_id = log.metadata.journey_id;
             }
 
             if (log.event_name === 'pageview') {

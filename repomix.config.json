@@ -11,6 +11,7 @@
             "**/node_modules/**",
             "**/.next/**",
             "**/.git/**",
+            "**/.vercel/**",
             "**/dist/**",
             "**/coverage/**",
             "**/pnpm-lock.yaml",
@@ -22,11 +23,17 @@
             "**/*.jpeg",
             "**/*.svg",
             "**/*.gif",
+            "**/*.woff",
+            "**/*.woff2",
             "**/.DS_Store",
             "**/.env",
             "**/.env.*",
             "**/README.md",
-            "**/repomix.config.json"
+            "**/repomix.config.json",
+            "**/next-env.d.ts",
+            "**/tsconfig.tsbuildinfo",
+            "**/deploy-and-watch.sh",
+            "**/*repomix*.xml"
         ]
     }
 }

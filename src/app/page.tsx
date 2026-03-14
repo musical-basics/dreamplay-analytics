@@ -58,7 +58,7 @@ interface DashboardData {
   }[];
   recentEvents: AnalyticsEvent[];
   abResults: { variant: string; label?: string; visitors: number; conversions: number; conversion_rate: number }[];
-  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string; sourceUrl?: string; totalTimeSeconds: number }[];
+  visitorStats: { ip: string; count: number; lastPath: string; lastSeen: string; country: string; device: string; email?: string; source?: string; sourceUrl?: string; totalTimeSeconds: number; journey_id?: string }[];
 }
 
 interface InsightsData {
@@ -687,6 +687,19 @@ export default function Dashboard() {
                           })()}
                         </div>
                       </div>
+                      <div className="bg-neutral-900/60 rounded-lg p-3">
+                        <div className="text-xs text-neutral-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                          🧭 Journey
+                        </div>
+                        <div className="text-sm font-medium">
+                          {(() => {
+                            const v = data?.visitorStats?.find(v => v.ip === selectedVisitorIp);
+                            return v?.journey_id ? (
+                              <span className="bg-amber-500/15 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-xs font-mono">{v.journey_id}</span>
+                            ) : <span className="text-neutral-500">—</span>;
+                          })()}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Visit history table */}
@@ -839,6 +852,7 @@ export default function Dashboard() {
                         <th className="px-4 py-3 whitespace-nowrap">IP Address</th>
                         <th className="px-4 py-3 whitespace-nowrap">Source</th>
                         <th className="px-4 py-3 whitespace-nowrap">Email (if found)</th>
+                        <th className="px-4 py-3 whitespace-nowrap">Journey</th>
                         <th className="px-4 py-3 whitespace-nowrap">Country</th>
                         <th className="px-4 py-3 whitespace-nowrap">Device</th>
                         <th className="px-4 py-3 whitespace-nowrap">Page Hits</th>
@@ -877,6 +891,13 @@ export default function Dashboard() {
                             )}
                           </td>
                           <td className="px-4 py-4">
+                            {visitor.journey_id ? (
+                              <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded text-xs font-mono">{visitor.journey_id}</span>
+                            ) : (
+                              <span className="text-neutral-600 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-4">
                             <span className="flex items-center gap-1 text-xs"><Globe size={12} /> {visitor.country}</span>
                           </td>
                           <td className="px-4 py-4">
@@ -907,7 +928,7 @@ export default function Dashboard() {
                         </tr>
                       ))}
                       {(!data?.visitorStats || data.visitorStats.length === 0) && (
-                        <tr><td colSpan={9} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
+                        <tr><td colSpan={10} className="px-6 py-8 text-center text-neutral-500">No visitor data available.</td></tr>
                       )}
                     </tbody>
                   </table>
