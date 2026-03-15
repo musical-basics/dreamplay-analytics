@@ -28,7 +28,8 @@ export async function GET(request: Request) {
     try {
         // Supabase has a default row limit (~1000). Paginate to get all data.
         const PAGE_SIZE = 1000;
-        let allLogs: any[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let allLogs: Record<string, any>[] = [];
         let page = 0;
         let hasMore = true;
 
