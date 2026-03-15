@@ -46,6 +46,8 @@ export async function GET(request: Request) {
             pageHits: number;
             totalTimeSeconds: number;
             pages: Map<string, number>;
+            rawPaths: string[];
+            email: string;
         }>();
 
         safeLogs.forEach(log => {
@@ -75,6 +77,8 @@ export async function GET(request: Request) {
                     pageHits: 0,
                     totalTimeSeconds: 0,
                     pages: new Map(),
+                    rawPaths: [],
+                    email: log.metadata?.email || '',
                 });
             } else if (entrySource) {
                 // Keep overwriting so oldest source wins (logs are newest-first)
@@ -87,6 +91,10 @@ export async function GET(request: Request) {
                 // Track page frequency
                 const cleanPath = (log.path || '/').split('?')[0]; // Remove query params for grouping
                 v.pages.set(cleanPath, (v.pages.get(cleanPath) || 0) + 1);
+                // Store full raw path (with SID/CID query params) for debugging
+                if (log.path) v.rawPaths.push(log.path);
+                // Capture email if found later
+                if (!v.email && log.metadata?.email) v.email = log.metadata.email;
             }
 
             if (log.event_name === 'page_leave' && log.metadata?.duration_seconds) {
@@ -115,13 +123,18 @@ export async function GET(request: Request) {
                 .map(([path, count]) => `${path} (${count})`)
                 .join(' | ');
 
+            // Get the last visited page with full query params (most recent = first in rawPaths since logs are newest-first)
+            const lastVisitedRaw = v.rawPaths[0] || '—';
+
             return {
                 ip: v.ip,
+                email: v.email || '',
                 source: v.source,
                 country: v.country,
                 pageHits: v.pageHits,
                 totalTimeSeconds: v.totalTimeSeconds,
                 topPages,
+                lastVisitedRaw,
             };
         });
 

@@ -1784,16 +1784,18 @@ export default function Dashboard() {
                 {exportData && exportData.length > 0 && (
                   <button
                     onClick={() => {
-                      const headers = ['IP Address', 'Source', 'Country', 'Page Hits', 'Total Time on Page (s)', 'Pages Visited (Top 5)'];
+                      const headers = ['IP Address', 'Email (if found)', 'Source', 'Country', 'Page Hits', 'Total Time on Page (s)', 'Pages Visited (Top 5)', 'Last Visit (Full URL)'];
                       const csvRows = [headers.join(',')];
                       exportData.forEach(row => {
                         csvRows.push([
                           `"${row.ip}"`,
+                          `"${String(row.email || '').replace(/"/g, '""')}"`,
                           `"${String(row.source || '').replace(/"/g, '""')}"`,
                           `"${row.country}"`,
                           row.pageHits,
                           row.totalTimeSeconds,
                           `"${String(row.topPages || '').replace(/"/g, '""')}"`,
+                          `"${String(row.lastVisitedRaw || '').replace(/"/g, '""')}"`,
                         ].join(','));
                       });
                       const blob = new Blob([csvRows.join('\n')], { type: 'text/csv' });
@@ -1818,20 +1820,29 @@ export default function Dashboard() {
                     <thead className="bg-neutral-900/50 text-neutral-300 uppercase font-medium text-xs">
                       <tr>
                         <th className="px-4 py-3">IP Address</th>
+                        <th className="px-4 py-3">Email</th>
                         <th className="px-4 py-3">Source</th>
                         <th className="px-4 py-3">Country</th>
                         <th className="px-4 py-3 text-right">Page Hits</th>
                         <th className="px-4 py-3 text-right">Total Time (s)</th>
                         <th className="px-4 py-3">Pages Visited (Top 5)</th>
+                        <th className="px-4 py-3">Last Visit (Full URL)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-700/50">
                       {exportData.length === 0 ? (
-                        <tr><td colSpan={6} className="px-4 py-8 text-center text-neutral-500">No visitors found for this date range.</td></tr>
+                        <tr><td colSpan={8} className="px-4 py-8 text-center text-neutral-500">No visitors found for this date range.</td></tr>
                       ) : (
                         exportData.slice(0, 50).map((row: Record<string, string | number>, i: number) => (
                           <tr key={i} className="hover:bg-white/5 transition-colors text-neutral-300">
                             <td className="px-4 py-2.5 font-mono text-xs text-neutral-400">{row.ip}</td>
+                            <td className="px-4 py-2.5 text-xs">
+                              {row.email ? (
+                                <span className="bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded border border-green-500/20 text-xs">{row.email}</span>
+                              ) : (
+                                <span className="text-neutral-600 text-xs">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-2.5">
                               {row.source !== 'Direct' ? (
                                 <span className="bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded border border-purple-500/20 text-xs">{row.source}</span>
@@ -1844,6 +1855,9 @@ export default function Dashboard() {
                             <td className="px-4 py-2.5 text-right font-mono text-xs">{row.totalTimeSeconds}</td>
                             <td className="px-4 py-2.5 text-xs text-neutral-400 max-w-md">
                               <span className="break-all">{row.topPages || '—'}</span>
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-neutral-500 max-w-lg">
+                              <span className="break-all font-mono">{row.lastVisitedRaw || '—'}</span>
                             </td>
                           </tr>
                         ))
