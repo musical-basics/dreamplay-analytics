@@ -48,6 +48,7 @@ export async function GET(request: Request) {
             pages: Map<string, number>;
             rawPaths: string[];
             email: string;
+            firstVisitAt: string;
         }>();
 
         safeLogs.forEach(log => {
@@ -79,10 +80,15 @@ export async function GET(request: Request) {
                     pages: new Map(),
                     rawPaths: [],
                     email: log.metadata?.email || '',
+                    firstVisitAt: log.created_at || '',
                 });
-            } else if (entrySource) {
-                // Keep overwriting so oldest source wins (logs are newest-first)
-                visitorMap.get(ip)!.source = entrySource;
+            } else {
+                if (entrySource) {
+                    // Keep overwriting so oldest source wins (logs are newest-first)
+                    visitorMap.get(ip)!.source = entrySource;
+                }
+                // Logs are newest-first, so keep overwriting to get oldest timestamp
+                if (log.created_at) visitorMap.get(ip)!.firstVisitAt = log.created_at;
             }
 
             if (log.event_name === 'pageview') {
@@ -129,6 +135,7 @@ export async function GET(request: Request) {
             return {
                 ip: v.ip,
                 email: v.email || '',
+                firstVisitAt: v.firstVisitAt || '',
                 source: v.source,
                 country: v.country,
                 pageHits: v.pageHits,

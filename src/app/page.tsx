@@ -1784,12 +1784,13 @@ export default function Dashboard() {
                 {exportData && exportData.length > 0 && (
                   <button
                     onClick={() => {
-                      const headers = ['IP Address', 'Email (if found)', 'Source', 'Country', 'Page Hits', 'Total Time on Page (s)', 'Pages Visited (Top 5)', 'Last Visit (Full URL)'];
+                      const headers = ['IP Address', 'Email (if found)', 'First Visit', 'Source', 'Country', 'Page Hits', 'Total Time on Page (s)', 'Pages Visited (Top 5)', 'Last Visit (Full URL)'];
                       const csvRows = [headers.join(',')];
                       exportData.forEach(row => {
                         csvRows.push([
                           `"${row.ip}"`,
                           `"${String(row.email || '').replace(/"/g, '""')}"`,
+                          `"${row.firstVisitAt ? new Date(String(row.firstVisitAt)).toLocaleString() : ''}"`,
                           `"${String(row.source || '').replace(/"/g, '""')}"`,
                           `"${row.country}"`,
                           row.pageHits,
@@ -1821,6 +1822,7 @@ export default function Dashboard() {
                       <tr>
                         <th className="px-4 py-3">IP Address</th>
                         <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">First Visit</th>
                         <th className="px-4 py-3">Source</th>
                         <th className="px-4 py-3">Country</th>
                         <th className="px-4 py-3 text-right">Page Hits</th>
@@ -1831,7 +1833,7 @@ export default function Dashboard() {
                     </thead>
                     <tbody className="divide-y divide-neutral-700/50">
                       {exportData.length === 0 ? (
-                        <tr><td colSpan={8} className="px-4 py-8 text-center text-neutral-500">No visitors found for this date range.</td></tr>
+                        <tr><td colSpan={9} className="px-4 py-8 text-center text-neutral-500">No visitors found for this date range.</td></tr>
                       ) : (
                         exportData.slice(0, 50).map((row: Record<string, string | number>, i: number) => (
                           <tr key={i} className="hover:bg-white/5 transition-colors text-neutral-300">
@@ -1842,6 +1844,9 @@ export default function Dashboard() {
                               ) : (
                                 <span className="text-neutral-600 text-xs">—</span>
                               )}
+                            </td>
+                            <td className="px-4 py-2.5 text-xs text-neutral-400 whitespace-nowrap">
+                              {row.firstVisitAt ? new Date(String(row.firstVisitAt)).toLocaleString() : '—'}
                             </td>
                             <td className="px-4 py-2.5">
                               {row.source !== 'Direct' ? (
