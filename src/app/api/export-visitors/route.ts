@@ -26,17 +26,33 @@ export async function GET(request: Request) {
     else startTime.setDate(now.getDate() - 7);
 
     try {
-        const { data: logs, error } = await supabase
-            .from('analytics_logs')
-            .select('ip_address, event_name, path, metadata, country, created_at')
-            .in('event_name', ['pageview', 'page_leave'])
-            .gt('created_at', startTime.toISOString())
-            .order('created_at', { ascending: false })
-            .limit(50000);
+        // Supabase has a default row limit (~1000). Paginate to get all data.
+        const PAGE_SIZE = 1000;
+        let allLogs: any[] = [];
+        let page = 0;
+        let hasMore = true;
 
-        if (error) throw error;
+        while (hasMore) {
+            const { data: logs, error } = await supabase
+                .from('analytics_logs')
+                .select('ip_address, event_name, path, metadata, country, created_at')
+                .in('event_name', ['pageview', 'page_leave'])
+                .gt('created_at', startTime.toISOString())
+                .order('created_at', { ascending: false })
+                .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
 
-        const safeLogs = logs || [];
+            if (error) throw error;
+
+            const rows = logs || [];
+            allLogs = allLogs.concat(rows);
+            hasMore = rows.length === PAGE_SIZE;
+            page++;
+
+            // Safety cap at 50 pages (50k rows)
+            if (page >= 50) break;
+        }
+
+        const safeLogs = allLogs;
 
         // Aggregate per IP
         const visitorMap = new Map<string, {
