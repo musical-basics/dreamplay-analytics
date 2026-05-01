@@ -14,8 +14,19 @@ const allowedOrigins = [
     'https://dreamplaypianos.com',
     'https://www.dreamplaypianos.com',
     'https://blog.dreamplaypianos.com',
-    'https://crowdfund.dreamplaypianos.com'
+    'https://crowdfund.dreamplaypianos.com',
+    'https://belgium.musicalbasics.com',
+    'https://www.musicalbasics.com',
+    'https://musicalbasics.com'
 ];
+
+// Email repo Supabase client (cross-project lookup for subscriber data).
+// Used to resolve metadata.sid (subscriber id, sent in beacons from
+// email-driven landing pages) into metadata.email so the existing
+// IP-keyed email-visitors flow picks it up without further changes.
+const emailSupabase = process.env.EMAIL_SUPABASE_URL && process.env.EMAIL_SUPABASE_SERVICE_KEY
+    ? createClient(process.env.EMAIL_SUPABASE_URL, process.env.EMAIL_SUPABASE_SERVICE_KEY)
+    : null;
 
 function corsHeaders(origin: string | null): Record<string, string> {
     // Allow Vercel previews and localhost for testing
@@ -62,11 +73,36 @@ export async function POST(request: Request) {
 
     try {
         const body = await request.json();
-        const { eventName, path, sessionId, metadata } = body;
+        const { eventName, path, sessionId, metadata: incomingMetadata } = body;
         console.log('[Track API] Processing event:', eventName, path);
 
         // Truncate path to avoid database errors if URL is too long
         const safePath = path ? path.substring(0, 2000) : path;
+
+        // Enrich: if metadata.sid is present and metadata.email is not, look
+        // up the subscriber's email from the email repo Supabase. This lets
+        // beacons from email-driven landing pages (e.g. Belgium concert page)
+        // attach to subscriber identity without exposing emails client-side.
+        const metadata: Record<string, unknown> = { ...(incomingMetadata || {}) };
+        if (
+            emailSupabase &&
+            typeof metadata.sid === 'string' &&
+            metadata.sid.length > 0 &&
+            (typeof metadata.email !== 'string' || metadata.email.length === 0)
+        ) {
+            try {
+                const { data: sub } = await emailSupabase
+                    .from('subscribers')
+                    .select('email')
+                    .eq('id', metadata.sid)
+                    .maybeSingle();
+                if (sub?.email) {
+                    metadata.email = sub.email;
+                }
+            } catch (err) {
+                console.warn('[Track API] sid->email lookup failed:', err);
+            }
+        }
 
         const forwardedFor = request.headers.get('x-forwarded-for');
         const ip_address = forwardedFor
