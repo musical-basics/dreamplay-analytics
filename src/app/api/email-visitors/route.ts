@@ -102,7 +102,11 @@ export async function GET(request: Request) {
             });
         }
 
-        // 3. Build visitor stats from these logs
+        // 3. Build visitor stats from these logs.
+        // Keyed by `${ip}::${email}` so a single IP that has been used by
+        // multiple email accounts (e.g. someone with both a personal gmail
+        // and a shared support inbox) shows up as separate visitor rows
+        // rather than collapsing onto whichever email won the IP map.
         const visitorMap = new Map<string, {
             ip: string;
             count: number;
@@ -120,8 +124,16 @@ export async function GET(request: Request) {
         // Logs are newest-first, so first occurrence = most recent
         safeLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
-            const email = ipToEmailMap.get(ip);
+            // Prefer per-event metadata.email (set server-side from sid lookup
+            // on email-driven landings) over the IP→email map. This ensures a
+            // click that resolves to support@musicalbasics.com is not silently
+            // re-attributed to a personal gmail that happened to share the IP.
+            const eventEmail = (log.metadata && typeof log.metadata.email === 'string')
+                ? log.metadata.email
+                : undefined;
+            const email = eventEmail || ipToEmailMap.get(ip);
             if (!email) return; // safety check
+            const key = `${ip}::${email}`;
 
             // Parse traffic source from metadata
             let entrySource: string | undefined = undefined;
@@ -140,8 +152,8 @@ export async function GET(request: Request) {
                 }
             }
 
-            if (!visitorMap.has(ip)) {
-                visitorMap.set(ip, {
+            if (!visitorMap.has(key)) {
+                visitorMap.set(key, {
                     ip,
                     count: 0,
                     lastPath: log.path,
@@ -163,17 +175,17 @@ export async function GET(request: Request) {
                 });
             } else if (entrySource) {
                 // Logs are newest-first; keep overwriting so oldest source wins
-                visitorMap.get(ip)!.source = entrySource;
-                if (entrySourceUrl) visitorMap.get(ip)!.sourceUrl = entrySourceUrl;
+                visitorMap.get(key)!.source = entrySource;
+                if (entrySourceUrl) visitorMap.get(key)!.sourceUrl = entrySourceUrl;
             }
 
             // Keep most recent journey_id
-            if (log.metadata?.journey_id && !visitorMap.get(ip)!.journey_id) {
-                visitorMap.get(ip)!.journey_id = log.metadata.journey_id;
+            if (log.metadata?.journey_id && !visitorMap.get(key)!.journey_id) {
+                visitorMap.get(key)!.journey_id = log.metadata.journey_id;
             }
 
             if (log.event_name === 'pageview') {
-                visitorMap.get(ip)!.count += 1;
+                visitorMap.get(key)!.count += 1;
             }
         });
 
