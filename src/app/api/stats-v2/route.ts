@@ -85,11 +85,25 @@ export async function GET(request: Request) {
             ipToEmailMap.set(row.ip_address, row.email);
         });
 
-        // Build visitor map
+        // Build visitor map.
+        // Keyed by `${ip}::${email}` so a single IP that has been used by
+        // multiple email accounts (e.g. someone with both a personal gmail
+        // and a shared support inbox on the same machine) shows up as
+        // separate visitor rows rather than collapsing onto whichever email
+        // happened to be in the IP map.
         const visitorMap = new Map<string, { ip: string, count: number, lastPath: string, lastSeen: string, country: string, device: string, email?: string, source?: string, sourceUrl?: string, totalTimeSeconds: number, journey_id?: string }>();
 
         safeVisitorLogs.forEach(log => {
             const ip = log.ip_address || 'unknown';
+
+            // Prefer per-event metadata.email (set server-side from sid lookup
+            // on email-driven landings) over the IP map. Falls back to the IP
+            // map for events without metadata.email (e.g. organic page views).
+            const eventEmail = (log.metadata && typeof log.metadata.email === 'string')
+                ? log.metadata.email
+                : undefined;
+            const email = eventEmail || ipToEmailMap.get(ip);
+            const key = `${ip}::${email || ''}`;
 
             // Parse traffic source from metadata — keep raw links
             let entrySource: string | undefined = undefined;
@@ -109,8 +123,8 @@ export async function GET(request: Request) {
                 }
             }
 
-            if (!visitorMap.has(ip)) {
-                visitorMap.set(ip, {
+            if (!visitorMap.has(key)) {
+                visitorMap.set(key, {
                     ip,
                     count: 0,
                     lastPath: log.path,
@@ -124,7 +138,7 @@ export async function GET(request: Request) {
                         if (/Mobile|iPhone|iPod|Android.*Mobile|webOS|BlackBerry|Opera Mini|IEMobile/i.test(ua)) return 'Mobile';
                         return 'Desktop';
                     })(),
-                    email: ipToEmailMap.get(ip),
+                    email,
                     source: entrySource,
                     sourceUrl: entrySourceUrl,
                     totalTimeSeconds: 0,
@@ -132,24 +146,24 @@ export async function GET(request: Request) {
                 });
             } else if (entrySource) {
                 // Logs are newest-first; keep overwriting so oldest source wins
-                visitorMap.get(ip)!.source = entrySource;
-                if (entrySourceUrl) visitorMap.get(ip)!.sourceUrl = entrySourceUrl;
+                visitorMap.get(key)!.source = entrySource;
+                if (entrySourceUrl) visitorMap.get(key)!.sourceUrl = entrySourceUrl;
             }
 
             // Keep most recent journey_id
-            if (log.metadata?.journey_id && !visitorMap.get(ip)!.journey_id) {
-                visitorMap.get(ip)!.journey_id = log.metadata.journey_id;
+            if (log.metadata?.journey_id && !visitorMap.get(key)!.journey_id) {
+                visitorMap.get(key)!.journey_id = log.metadata.journey_id;
             }
 
             if (log.event_name === 'pageview') {
-                visitorMap.get(ip)!.count += 1;
+                visitorMap.get(key)!.count += 1;
             }
 
             // Accumulate time on page from page_leave events
             if (log.event_name === 'page_leave' && log.metadata?.duration_seconds) {
                 const dur = Number(log.metadata.duration_seconds);
                 if (!isNaN(dur) && dur > 0 && dur < 3600) {
-                    visitorMap.get(ip)!.totalTimeSeconds += dur;
+                    visitorMap.get(key)!.totalTimeSeconds += dur;
                 }
             }
         });
