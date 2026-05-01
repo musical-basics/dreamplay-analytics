@@ -17,7 +17,9 @@ const allowedOrigins = [
     'https://crowdfund.dreamplaypianos.com',
     'https://belgium.musicalbasics.com',
     'https://www.musicalbasics.com',
-    'https://musicalbasics.com'
+    'https://musicalbasics.com',
+    'https://ultimatepianist.com',
+    'https://www.ultimatepianist.com'
 ];
 
 // Email repo Supabase client (cross-project lookup for subscriber data).
